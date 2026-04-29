@@ -7,6 +7,8 @@ import { Product } from "../product/product.model";
 import { ProductStatus } from "../product/product.interface";
 import { Payment } from "../payment/payment.model";
 import { PaymentStatus } from "../payment/payment.interface";
+import { User } from "../user/user.model";
+import { SSLService } from "../sslcommerz/sslcommerz.service";
 import { getTransactionId } from "../../utils/getTransactionId";
 import { QueryBuilder } from "../../utils/queryBuilder";
 
@@ -110,9 +112,8 @@ const createOrder = async (
     // 6. Link payment back to order
     await Order.findByIdAndUpdate(order._id, { payment: payment._id }, { session });
 
-    // 7. Init SSLCommerz payment
-    const { SSLService } = await import("../sslcommerz/sslcommerz.service");
-    const user = await mongoose.model("User").findById(userId).session(session);
+    // 7. Init SSLCommerz payment (static import — no circular dependency)
+    const user = await User.findById(userId).session(session);
 
     const sslResult = await SSLService.initPayment({
       amount: totalAmount,

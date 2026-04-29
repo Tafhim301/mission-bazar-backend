@@ -59,8 +59,24 @@ const initPayment = async (orderId: string, userId: string): Promise<{ paymentUr
 // === Success callback (SSLCommerz redirects here) ============================
 
 const successPayment = async (query: Record<string, string>): Promise<{ success: true; message: string }> => {
+  // ---- Phase 1: DB transaction -- mark PAID + order PROCESSING ----------------
+  // Cloudinary / PDF work is intentionally OUTSIDE this transaction.
+  // If Cloudinary were inside and threw, abortTransaction() would revert the
+  // PAID status even though SSLCommerz already charged the customer.
   const session = await mongoose.startSession();
   session.startTransaction();
+
+  let paymentId: string;
+  let transactionId: string;
+  let orderData: {
+    user: any;
+    shippingAddress: any;
+    items: any[];
+    itemsTotal: number;
+    shippingCharge: number;
+    totalAmount: number;
+    createdAt: Date;
+  };
 
   try {
     const payment = await Payment.findOneAndUpdate(
@@ -80,67 +96,83 @@ const successPayment = async (query: Record<string, string>): Promise<{ success:
 
     if (!order) throw new AppError(StatusCodes.NOT_FOUND, "Order not found");
 
-    const user = order.user as any;
-
-    // Build invoice data
-    const invoiceData = {
-      transactionId: payment.transactionId,
-      orderDate: order.createdAt,
-      customerName: user.name,
-      customerPhone: user.phone,
-      shippingAddress: `${order.shippingAddress.address}, ${order.shippingAddress.city}, ${order.shippingAddress.postalCode}`,
-      items: order.items.map((i: any) => ({
-        name: i.name,
-        quantity: i.quantity,
-        price: i.price,
-      })),
+    // Capture everything we need for post-commit work before ending session
+    paymentId = String(payment._id);
+    transactionId = payment.transactionId;
+    orderData = {
+      user: order.user,
+      shippingAddress: order.shippingAddress,
+      items: order.items as any[],
       itemsTotal: order.itemsTotal,
       shippingCharge: order.shippingCharge,
       totalAmount: order.totalAmount,
+      createdAt: order.createdAt as Date,
     };
-
-    // Generate PDF → upload to Cloudinary
-    const pdfBuffer = await generateInvoicePdf(invoiceData);
-    const cloudResult = await uploadBufferToCloudinary(
-      pdfBuffer,
-      `invoice-${payment.transactionId}`,
-      "mission-bazar/invoices"
-    );
-
-    const invoiceUrl = cloudResult?.secure_url ?? "";
-
-    await Payment.findByIdAndUpdate(
-      payment._id,
-      { invoiceUrl },
-      { session }
-    );
 
     await session.commitTransaction();
     session.endSession();
-
-    // Send invoice email (non-blocking — do not fail transaction if email fails)
-    sendEmail({
-      to: user.email ?? "",
-      subject: "Your Mission Bazar Order Invoice",
-      templateName: "invoice",
-      templateData: { ...invoiceData, invoiceUrl },
-      attachments: [
-        {
-          filename: `invoice-${payment.transactionId}.pdf`,
-          content: pdfBuffer,
-          contentType: "application/pdf",
-        },
-      ],
-    }).catch((err) =>
-      console.error(`Invoice email failed for ${payment.transactionId}:`, err)
-    );
-
-    return { success: true, message: "Payment completed successfully" };
   } catch (error) {
     await session.abortTransaction();
     session.endSession();
     throw error;
   }
+
+  // ---- Phase 2: Post-commit -- PDF, Cloudinary, email (non-fatal) -------------
+  // Any failure here does NOT roll back the confirmed payment.
+  // The invoiceUrl field simply stays empty and can be regenerated later.
+  const user = orderData.user as any;
+  const invoiceData = {
+    transactionId,
+    orderDate: orderData.createdAt,
+    customerName: user.name,
+    customerPhone: user.phone,
+    shippingAddress: `${orderData.shippingAddress.address}, ${orderData.shippingAddress.city}, ${orderData.shippingAddress.postalCode}`,
+    items: orderData.items.map((i: any) => ({
+      name: i.name,
+      quantity: i.quantity,
+      price: i.price,
+    })),
+    itemsTotal: orderData.itemsTotal,
+    shippingCharge: orderData.shippingCharge,
+    totalAmount: orderData.totalAmount,
+  };
+
+  // Fire-and-forget — generate PDF, upload, update invoiceUrl, send email
+  (async () => {
+    try {
+      const pdfBuffer = await generateInvoicePdf(invoiceData);
+      const cloudResult = await uploadBufferToCloudinary(
+        pdfBuffer,
+        `invoice-${transactionId}`,
+        "mission-bazar/invoices"
+      );
+      const invoiceUrl = cloudResult?.secure_url ?? "";
+
+      if (invoiceUrl) {
+        await Payment.findByIdAndUpdate(paymentId, { invoiceUrl });
+      }
+
+      sendEmail({
+        to: user.email ?? "",
+        subject: "Your Mission Bazar Order Invoice",
+        templateName: "invoice",
+        templateData: { ...invoiceData, invoiceUrl },
+        attachments: [
+          {
+            filename: `invoice-${transactionId}.pdf`,
+            content: pdfBuffer,
+            contentType: "application/pdf",
+          },
+        ],
+      }).catch((err) =>
+        console.error(`Invoice email failed for ${transactionId}:`, err)
+      );
+    } catch (err) {
+      console.error(`Post-payment invoice generation failed for ${transactionId}:`, err);
+    }
+  })();
+
+  return { success: true, message: "Payment completed successfully" };
 };
 
 // === Fail callback ===========================================================
@@ -166,14 +198,14 @@ const failPayment = async (query: Record<string, string>): Promise<{ success: fa
       session.endSession();
 
       // Notify user of failure (non-blocking)
-      const user = (order?.user) as any;
-      if (user?.email) {
+      const orderUser = (order?.user) as any;
+      if (orderUser?.email) {
         sendEmail({
-          to: user.email,
-          subject: "Payment Failed – Mission Bazar",
+          to: orderUser.email,
+          subject: "Payment Failed - Mission Bazar",
           templateName: "paymentFailed",
           templateData: {
-            customerName: user.name,
+            customerName: orderUser.name,
             transactionId: payment.transactionId,
             amount: payment.amount,
             frontendUrl: envVars.CLIENT_URL,
@@ -250,12 +282,16 @@ const getInvoiceUrl = async (
 // === Get My Payments =========================================================
 
 const getMyPayments = async (userId: string) => {
-  return Payment.find()
-    .populate({
-      path: "order",
-      match: { user: userId },
-      select: "status totalAmount shippingAddress createdAt",
-    })
+  // NOTE: We must NOT use Payment.find().populate({ match: { user: userId } })
+  // because populate `match` only nullifies the populated field for non-matching
+  // records -- it does NOT filter at the DB level, meaning every payment in the
+  // collection would be fetched and leaked to the requesting user.
+  // Correct approach: find the user's orders first, then query payments by those IDs.
+  const userOrders = await Order.find({ user: userId }).select("_id").lean();
+  const orderIds = userOrders.map((o) => o._id);
+
+  return Payment.find({ order: { $in: orderIds } })
+    .populate("order", "status totalAmount shippingAddress createdAt items")
     .sort({ createdAt: -1 });
 };
 

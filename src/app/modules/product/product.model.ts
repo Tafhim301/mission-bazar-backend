@@ -43,6 +43,17 @@ const productSchema = new Schema<IProductDocument>(
   }
 );
 
+// === Indexes =================================================================
+// slug is already unique:true above; the explicit index aids covered queries.
+// category + status together support the most common storefront query pattern.
+
+productSchema.index({ category: 1, status: 1 });
+productSchema.index({ vendor: 1 });
+productSchema.index({ status: 1 });
+productSchema.index({ tags: 1 });
+productSchema.index({ price: 1 });
+productSchema.index({ createdAt: -1 });
+
 // === Auto-generate unique slug ===============================================
 
 const buildUniqueSlug = async (base: string, excludeId?: string): Promise<string> => {

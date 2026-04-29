@@ -86,9 +86,9 @@ const UserSchema = new Schema<IUserDocument>(
 );
 
 // === Indexes =================================================================
+// phone and email already have indexes via unique:true / sparse:true on the
+// field definition — adding schema.index() for them would create duplicates.
 
-UserSchema.index({ phone: 1 });
-UserSchema.index({ email: 1 }, { sparse: true });
 UserSchema.index({ role: 1, status: 1 });
 
 // === Query Middleware: auto-exclude soft-deleted docs ========================
