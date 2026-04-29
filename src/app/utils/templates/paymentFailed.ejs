@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <title>Payment Failed – Mission Bazar</title>
+  <style>
+    body { font-family: Arial, sans-serif; background: #f4f4f4; padding: 20px; color: #333; }
+    .wrapper { max-width: 580px; margin: 0 auto; background: #fff; border-radius: 8px; overflow: hidden; }
+    .header { background: #c0392b; color: #fff; padding: 24px 32px; text-align: center; }
+    .header h1 { margin: 0; font-size: 22px; }
+    .body { padding: 28px 32px; font-size: 14px; line-height: 1.7; }
+    .info-row { display: flex; justify-content: space-between; margin-bottom: 6px; font-size: 13px; }
+    .info-row span:first-child { color: #777; }
+    .cta { text-align: center; margin: 24px 0; }
+    .cta a { background: #1a1a2e; color: #fff; padding: 12px 28px; border-radius: 4px; text-decoration: none; font-size: 14px; }
+    .footer { background: #f4f4f4; text-align: center; padding: 14px; font-size: 11px; color: #999; }
+  </style>
+</head>
+<body>
+<div class="wrapper">
+  <div class="header"><h1>Payment Failed</h1></div>
+  <div class="body">
+    <p>Hi <strong><%= customerName %></strong>,</p>
+    <p>Unfortunately your payment could not be processed.</p>
+    <div class="info-row"><span>Transaction ID</span><span><%= transactionId %></span></div>
+    <div class="info-row"><span>Amount</span><span>৳<%= amount.toFixed(2) %></span></div>
+    <p style="margin-top:16px;">You can retry the payment from your orders page, or contact support if the issue persists.</p>
+    <div class="cta"><a href="<%= frontendUrl %>/my-orders">Retry Payment</a></div>
+  </div>
+  <div class="footer">&copy; <%= new Date().getFullYear() %> Mission Bazar</div>
+</div>
+</body>
+</html>

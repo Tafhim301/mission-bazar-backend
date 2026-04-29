@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Order Invoice – Mission Bazar</title>
+  <style>
+    body { font-family: Arial, sans-serif; background: #f4f4f4; margin: 0; padding: 20px; color: #333; }
+    .wrapper { max-width: 620px; margin: 0 auto; background: #fff; border-radius: 8px; overflow: hidden; }
+    .header { background: #1a1a2e; color: #fff; padding: 24px 32px; text-align: center; }
+    .header h1 { margin: 0; font-size: 24px; letter-spacing: 2px; }
+    .header p { margin: 4px 0 0; font-size: 13px; opacity: 0.8; }
+    .body { padding: 28px 32px; }
+    .greeting { font-size: 16px; margin-bottom: 20px; }
+    .info-row { display: flex; justify-content: space-between; margin-bottom: 6px; font-size: 13px; }
+    .info-row span:first-child { color: #777; }
+    .divider { border: none; border-top: 1px solid #e0e0e0; margin: 20px 0; }
+    table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    thead tr { background: #1a1a2e; color: #fff; }
+    thead th { padding: 10px 12px; text-align: left; }
+    thead th:last-child, tbody td:last-child { text-align: right; }
+    tbody tr:nth-child(even) { background: #f9f9f9; }
+    tbody td { padding: 9px 12px; }
+    .totals { margin-top: 16px; text-align: right; font-size: 13px; }
+    .totals p { margin: 4px 0; }
+    .totals .grand { font-size: 16px; font-weight: bold; color: #1a1a2e; margin-top: 8px; }
+    .cta { text-align: center; margin: 28px 0 8px; }
+    .cta a { background: #1a1a2e; color: #fff; padding: 12px 28px; border-radius: 4px; text-decoration: none; font-size: 14px; }
+    .footer { background: #f4f4f4; text-align: center; padding: 16px; font-size: 11px; color: #999; }
+  </style>
+</head>
+<body>
+<div class="wrapper">
+  <div class="header">
+    <h1>MISSION BAZAR</h1>
+    <p>Your Trusted Online Marketplace</p>
+  </div>
+  <div class="body">
+    <p class="greeting">Hi <strong><%= customerName %></strong>, thank you for your order!</p>
+
+    <div class="info-row"><span>Transaction ID</span><span><%= transactionId %></span></div>
+    <div class="info-row"><span>Order Date</span><span><%= new Date(orderDate).toLocaleDateString('en-BD') %></span></div>
+    <div class="info-row"><span>Shipping To</span><span><%= shippingAddress %></span></div>
+
+    <hr class="divider"/>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Item</th>
+          <th style="text-align:center">Qty</th>
+          <th style="text-align:right">Unit Price</th>
+          <th>Subtotal</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% items.forEach(function(item){ %>
+        <tr>
+          <td><%= item.name %></td>
+          <td style="text-align:center"><%= item.quantity %></td>
+          <td style="text-align:right">৳<%= item.price.toFixed(2) %></td>
+          <td>৳<%= (item.price * item.quantity).toFixed(2) %></td>
+        </tr>
+        <% }); %>
+      </tbody>
+    </table>
+
+    <div class="totals">
+      <p>Items Total: <strong>৳<%= itemsTotal.toFixed(2) %></strong></p>
+      <p>Shipping: <strong>৳<%= shippingCharge.toFixed(2) %></strong></p>
+      <p class="grand">Total Paid: ৳<%= totalAmount.toFixed(2) %></p>
+    </div>
+
+    <% if (invoiceUrl) { %>
+    <div class="cta">
+      <a href="<%= invoiceUrl %>">Download PDF Invoice</a>
+    </div>
+    <% } %>
+  </div>
+  <div class="footer">
+    &copy; <%= new Date().getFullYear() %> Mission Bazar. All rights reserved.<br/>
+    Need help? Contact support@missionbazar.com
+  </div>
+</div>
+</body>
+</html>

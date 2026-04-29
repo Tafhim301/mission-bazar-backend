@@ -1,17 +1,20 @@
 import { Router } from "express";
-import { userRoutes } from "../modules/user/user.routes";
+import { authRoutes }     from "../modules/auth/auth.routes";
+import { userRoutes }     from "../modules/user/user.routes";
+import { categoryRoutes } from "../modules/category/category.routes";
+import { productRoutes }  from "../modules/product/product.routes";
+import { orderRoutes }    from "../modules/order/order.routes";
+import { paymentRoutes }  from "../modules/payment/payment.routes";
 
 export const router = Router();
 
 const moduleRoutes = [
-    {
-       path : '/user',
-       route : userRoutes
-    }
-    
+  { path: "/auth",     route: authRoutes     },
+  { path: "/user",     route: userRoutes     },
+  { path: "/category", route: categoryRoutes },
+  { path: "/product",  route: productRoutes  },
+  { path: "/order",    route: orderRoutes    },
+  { path: "/payment",  route: paymentRoutes  },
 ];
 
-
-moduleRoutes.forEach((route) => {
-    router.use(route.path,route.route)
-})
+moduleRoutes.forEach(({ path, route }) => router.use(path, route));

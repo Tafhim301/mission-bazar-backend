@@ -1,0 +1,287 @@
+{
+  "info": {
+    "name": "Mission Bazar API",
+    "description": "Complete API for Mission Bazar e-commerce backend.\n\n**Setup**\n1. Create a Postman Environment with `baseUrl = http://localhost:5000/api/v1`\n2. Register or Login — `accessToken` is auto-captured\n\n**Payment Flow**\n`POST /order` → get `paymentUrl` → complete on SSLCommerz sandbox → redirected to success/fail → `GET /payment/invoice/:id`",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl",    "value": "http://localhost:5000/api/v1" },
+    { "key": "accessToken","value": "" },
+    { "key": "userId",     "value": "" },
+    { "key": "categoryId", "value": "" },
+    { "key": "productId",  "value": "" },
+    { "key": "orderId",    "value": "" },
+    { "key": "paymentId",  "value": "" }
+  ],
+  "item": [
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "Register",
+          "event": [{"listen":"test","script":{"exec":["const r=pm.response.json();if(r.data?.accessToken){pm.collectionVariables.set('accessToken',r.data.accessToken);pm.collectionVariables.set('userId',r.data.user._id);}"]}}],
+          "request": {
+            "method": "POST", "header": [{"key":"Content-Type","value":"application/json"}],
+            "url": {"raw":"{{baseUrl}}/auth/register","host":["{{baseUrl}}"],"path":["auth","register"]},
+            "body": {"mode":"raw","raw":"{\n  \"name\": \"Alex Rahman\",\n  \"phone\": \"+8801711000001\",\n  \"email\": \"alex@example.com\",\n  \"password\": \"Secret123\",\n  \"confirmPassword\": \"Secret123\"\n}"}
+          }
+        },
+        {
+          "name": "Login",
+          "event": [{"listen":"test","script":{"exec":["const r=pm.response.json();if(r.data?.accessToken){pm.collectionVariables.set('accessToken',r.data.accessToken);pm.collectionVariables.set('userId',r.data.user._id);}"]}}],
+          "request": {
+            "method": "POST", "header": [{"key":"Content-Type","value":"application/json"}],
+            "url": {"raw":"{{baseUrl}}/auth/login","host":["{{baseUrl}}"],"path":["auth","login"]},
+            "body": {"mode":"raw","raw":"{\n  \"phone\": \"+8801711000001\",\n  \"password\": \"Secret123\"\n}"}
+          }
+        },
+        {
+          "name": "Refresh Token",
+          "event": [{"listen":"test","script":{"exec":["const r=pm.response.json();if(r.data?.accessToken)pm.collectionVariables.set('accessToken',r.data.accessToken);"]}}],
+          "request": {
+            "method": "POST", "header": [],
+            "url": {"raw":"{{baseUrl}}/auth/refresh-token","host":["{{baseUrl}}"],"path":["auth","refresh-token"]}
+          }
+        },
+        {
+          "name": "Change Password",
+          "request": {
+            "method": "PATCH",
+            "header": [{"key":"Content-Type","value":"application/json"},{"key":"Authorization","value":"Bearer {{accessToken}}"}],
+            "url": {"raw":"{{baseUrl}}/auth/change-password","host":["{{baseUrl}}"],"path":["auth","change-password"]},
+            "body": {"mode":"raw","raw":"{\n  \"currentPassword\": \"Secret123\",\n  \"newPassword\": \"NewSecret456\",\n  \"confirmNewPassword\": \"NewSecret456\"\n}"}
+          }
+        },
+        {
+          "name": "Logout",
+          "request": {
+            "method": "POST", "header": [{"key":"Authorization","value":"Bearer {{accessToken}}"}],
+            "url": {"raw":"{{baseUrl}}/auth/logout","host":["{{baseUrl}}"],"path":["auth","logout"]}
+          }
+        }
+      ]
+    },
+    {
+      "name": "User",
+      "item": [
+        {
+          "name": "Get My Profile",
+          "request": {"method":"GET","header":[{"key":"Authorization","value":"Bearer {{accessToken}}"}],"url":{"raw":"{{baseUrl}}/user/me","host":["{{baseUrl}}"],"path":["user","me"]}}
+        },
+        {
+          "name": "Update My Profile",
+          "request": {
+            "method":"PATCH",
+            "header":[{"key":"Content-Type","value":"application/json"},{"key":"Authorization","value":"Bearer {{accessToken}}"}],
+            "url":{"raw":"{{baseUrl}}/user/me","host":["{{baseUrl}}"],"path":["user","me"]},
+            "body":{"mode":"raw","raw":"{\n  \"name\": \"Alex Rahman Updated\"\n}"}
+          }
+        },
+        {
+          "name": "Get All Users (Admin)",
+          "request": {
+            "method":"GET","header":[{"key":"Authorization","value":"Bearer {{accessToken}}"}],
+            "url":{"raw":"{{baseUrl}}/user?page=1&limit=10","host":["{{baseUrl}}"],"path":["user"],"query":[{"key":"page","value":"1"},{"key":"limit","value":"10"},{"key":"searchTerm","value":"","disabled":true},{"key":"status","value":"ACTIVE","disabled":true}]}
+          }
+        },
+        {
+          "name": "Update User Status (Admin)",
+          "request": {
+            "method":"PATCH","header":[{"key":"Content-Type","value":"application/json"},{"key":"Authorization","value":"Bearer {{accessToken}}"}],
+            "url":{"raw":"{{baseUrl}}/user/{{userId}}/status","host":["{{baseUrl}}"],"path":["user","{{userId}}","status"]},
+            "body":{"mode":"raw","raw":"{\n  \"status\": \"BLOCKED\"\n}"}
+          }
+        },
+        {
+          "name": "Delete User (Admin)",
+          "request": {"method":"DELETE","header":[{"key":"Authorization","value":"Bearer {{accessToken}}"}],"url":{"raw":"{{baseUrl}}/user/{{userId}}","host":["{{baseUrl}}"],"path":["user","{{userId}}"]}}
+        }
+      ]
+    },
+    {
+      "name": "Category",
+      "item": [
+        {
+          "name": "Get All Categories (Public)",
+          "request": {"method":"GET","header":[],"url":{"raw":"{{baseUrl}}/category","host":["{{baseUrl}}"],"path":["category"]}}
+        },
+        {
+          "name": "Get Category by ID",
+          "request": {"method":"GET","header":[],"url":{"raw":"{{baseUrl}}/category/{{categoryId}}","host":["{{baseUrl}}"],"path":["category","{{categoryId}}"]}}
+        },
+        {
+          "name": "Get All Categories Admin",
+          "request": {"method":"GET","header":[{"key":"Authorization","value":"Bearer {{accessToken}}"}],"url":{"raw":"{{baseUrl}}/category/admin/all","host":["{{baseUrl}}"],"path":["category","admin","all"]}}
+        },
+        {
+          "name": "Create Category (Admin)",
+          "event": [{"listen":"test","script":{"exec":["const r=pm.response.json();if(r.data?._id)pm.collectionVariables.set('categoryId',r.data._id);"]}}],
+          "request": {
+            "method":"POST","header":[{"key":"Authorization","value":"Bearer {{accessToken}}"}],
+            "url":{"raw":"{{baseUrl}}/category","host":["{{baseUrl}}"],"path":["category"]},
+            "body":{"mode":"formdata","formdata":[{"key":"name","value":"Electronics","type":"text"},{"key":"description","value":"Phones, laptops, gadgets","type":"text"},{"key":"image","src":[],"type":"file","disabled":true}]}
+          }
+        },
+        {
+          "name": "Update Category (Admin)",
+          "request": {
+            "method":"PATCH","header":[{"key":"Authorization","value":"Bearer {{accessToken}}"}],
+            "url":{"raw":"{{baseUrl}}/category/{{categoryId}}","host":["{{baseUrl}}"],"path":["category","{{categoryId}}"]},
+            "body":{"mode":"formdata","formdata":[{"key":"name","value":"Electronics & Gadgets","type":"text"},{"key":"isActive","value":"true","type":"text"}]}
+          }
+        },
+        {
+          "name": "Delete Category (Admin)",
+          "request": {"method":"DELETE","header":[{"key":"Authorization","value":"Bearer {{accessToken}}"}],"url":{"raw":"{{baseUrl}}/category/{{categoryId}}","host":["{{baseUrl}}"],"path":["category","{{categoryId}}"]}}
+        }
+      ]
+    },
+    {
+      "name": "Product",
+      "item": [
+        {
+          "name": "Browse Products (Public)",
+          "request": {
+            "method":"GET","header":[],"url":{"raw":"{{baseUrl}}/product?page=1&limit=12&searchTerm=shirt","host":["{{baseUrl}}"],"path":["product"],"query":[{"key":"page","value":"1"},{"key":"limit","value":"12"},{"key":"searchTerm","value":"shirt"},{"key":"category","value":"{{categoryId}}","disabled":true},{"key":"sort","value":"-createdAt","disabled":true}]}
+          }
+        },
+        {
+          "name": "Get Product by ID",
+          "request": {"method":"GET","header":[],"url":{"raw":"{{baseUrl}}/product/{{productId}}","host":["{{baseUrl}}"],"path":["product","{{productId}}"]}}
+        },
+        {
+          "name": "Get Product by Slug",
+          "request": {"method":"GET","header":[],"url":{"raw":"{{baseUrl}}/product/slug/premium-cotton-t-shirt","host":["{{baseUrl}}"],"path":["product","slug","premium-cotton-t-shirt"]}}
+        },
+        {
+          "name": "Admin All Products",
+          "request": {"method":"GET","header":[{"key":"Authorization","value":"Bearer {{accessToken}}"}],"url":{"raw":"{{baseUrl}}/product/admin/all","host":["{{baseUrl}}"],"path":["product","admin","all"]}}
+        },
+        {
+          "name": "Create Product (Vendor/Admin)",
+          "event": [{"listen":"test","script":{"exec":["const r=pm.response.json();if(r.data?._id)pm.collectionVariables.set('productId',r.data._id);"]}}],
+          "request": {
+            "method":"POST","header":[{"key":"Authorization","value":"Bearer {{accessToken}}"}],
+            "url":{"raw":"{{baseUrl}}/product","host":["{{baseUrl}}"],"path":["product"]},
+            "body":{"mode":"formdata","formdata":[
+              {"key":"name","value":"Premium Cotton T-Shirt","type":"text"},
+              {"key":"description","value":"100% cotton, comfortable fit","type":"text"},
+              {"key":"price","value":"599","type":"text"},
+              {"key":"discountPrice","value":"499","type":"text"},
+              {"key":"category","value":"{{categoryId}}","type":"text"},
+              {"key":"brand","value":"BasicWear","type":"text"},
+              {"key":"stock","value":"150","type":"text"},
+              {"key":"status","value":"ACTIVE","type":"text"},
+              {"key":"tags","value":"[\"t-shirt\",\"cotton\"]","type":"text"},
+              {"key":"images","src":[],"type":"file","description":"Upload up to 8 images"}
+            ]}
+          }
+        },
+        {
+          "name": "Update Product",
+          "request": {
+            "method":"PATCH","header":[{"key":"Authorization","value":"Bearer {{accessToken}}"}],
+            "url":{"raw":"{{baseUrl}}/product/{{productId}}","host":["{{baseUrl}}"],"path":["product","{{productId}}"]},
+            "body":{"mode":"formdata","formdata":[{"key":"price","value":"549","type":"text"},{"key":"stock","value":"200","type":"text"}]}
+          }
+        },
+        {
+          "name": "Update Product Status (Admin)",
+          "request": {
+            "method":"PATCH","header":[{"key":"Content-Type","value":"application/json"},{"key":"Authorization","value":"Bearer {{accessToken}}"}],
+            "url":{"raw":"{{baseUrl}}/product/{{productId}}/status","host":["{{baseUrl}}"],"path":["product","{{productId}}","status"]},
+            "body":{"mode":"raw","raw":"{\n  \"status\": \"ACTIVE\"\n}"}
+          }
+        },
+        {
+          "name": "Delete Product",
+          "request": {"method":"DELETE","header":[{"key":"Authorization","value":"Bearer {{accessToken}}"}],"url":{"raw":"{{baseUrl}}/product/{{productId}}","host":["{{baseUrl}}"],"path":["product","{{productId}}"]}}
+        }
+      ]
+    },
+    {
+      "name": "Order",
+      "item": [
+        {
+          "name": "Place Order",
+          "description": "Creates order + payment record atomically. Returns SSLCommerz `paymentUrl` — redirect user there to complete payment.",
+          "event": [{"listen":"test","script":{"exec":["const r=pm.response.json();if(r.data?.order?._id){pm.collectionVariables.set('orderId',r.data.order._id);}"]}}],
+          "request": {
+            "method":"POST","header":[{"key":"Content-Type","value":"application/json"},{"key":"Authorization","value":"Bearer {{accessToken}}"}],
+            "url":{"raw":"{{baseUrl}}/order","host":["{{baseUrl}}"],"path":["order"]},
+            "body":{"mode":"raw","raw":"{\n  \"items\": [\n    { \"product\": \"{{productId}}\", \"quantity\": 2 }\n  ],\n  \"shippingAddress\": {\n    \"fullName\": \"Alex Rahman\",\n    \"phone\": \"+8801711000001\",\n    \"address\": \"House 12, Road 5, Dhanmondi\",\n    \"city\": \"Dhaka\",\n    \"postalCode\": \"1205\"\n  },\n  \"note\": \"Please pack carefully\"\n}"}
+          }
+        },
+        {
+          "name": "My Orders",
+          "request": {"method":"GET","header":[{"key":"Authorization","value":"Bearer {{accessToken}}"}],"url":{"raw":"{{baseUrl}}/order/my-orders?page=1&limit=10","host":["{{baseUrl}}"],"path":["order","my-orders"],"query":[{"key":"page","value":"1"},{"key":"limit","value":"10"}]}}
+        },
+        {
+          "name": "Get Order by ID",
+          "request": {"method":"GET","header":[{"key":"Authorization","value":"Bearer {{accessToken}}"}],"url":{"raw":"{{baseUrl}}/order/{{orderId}}","host":["{{baseUrl}}"],"path":["order","{{orderId}}"]}}
+        },
+        {
+          "name": "Cancel Order",
+          "request": {"method":"PATCH","header":[{"key":"Authorization","value":"Bearer {{accessToken}}"}],"url":{"raw":"{{baseUrl}}/order/{{orderId}}/cancel","host":["{{baseUrl}}"],"path":["order","{{orderId}}","cancel"]}}
+        },
+        {
+          "name": "All Orders (Admin)",
+          "request": {"method":"GET","header":[{"key":"Authorization","value":"Bearer {{accessToken}}"}],"url":{"raw":"{{baseUrl}}/order?page=1&limit=20","host":["{{baseUrl}}"],"path":["order"],"query":[{"key":"page","value":"1"},{"key":"limit","value":"20"},{"key":"status","value":"PENDING","disabled":true}]}}
+        },
+        {
+          "name": "Update Order Status (Admin)",
+          "request": {
+            "method":"PATCH","header":[{"key":"Content-Type","value":"application/json"},{"key":"Authorization","value":"Bearer {{accessToken}}"}],
+            "url":{"raw":"{{baseUrl}}/order/{{orderId}}/status","host":["{{baseUrl}}"],"path":["order","{{orderId}}","status"]},
+            "body":{"mode":"raw","raw":"{\n  \"status\": \"SHIPPED\"\n}"}
+          }
+        }
+      ]
+    },
+    {
+      "name": "Payment",
+      "item": [
+        {
+          "name": "Retry / Init Payment",
+          "description": "Re-issues a fresh SSLCommerz URL for a pending/failed order.",
+          "request": {"method":"POST","header":[{"key":"Authorization","value":"Bearer {{accessToken}}"}],"url":{"raw":"{{baseUrl}}/payment/init/{{orderId}}","host":["{{baseUrl}}"],"path":["payment","init","{{orderId}}"]}}
+        },
+        {
+          "name": "My Payment History",
+          "request": {"method":"GET","header":[{"key":"Authorization","value":"Bearer {{accessToken}}"}],"url":{"raw":"{{baseUrl}}/payment/my-payments","host":["{{baseUrl}}"],"path":["payment","my-payments"]}}
+        },
+        {
+          "name": "Get Invoice URL",
+          "description": "Returns the Cloudinary PDF URL for a completed payment. Auth required — users see own invoices only.",
+          "event": [{"listen":"test","script":{"exec":["const r=pm.response.json();if(r.data?.invoiceUrl)pm.collectionVariables.set('paymentId',r.request.url.path.slice(-1)[0]);"]}}],
+          "request": {"method":"GET","header":[{"key":"Authorization","value":"Bearer {{accessToken}}"}],"url":{"raw":"{{baseUrl}}/payment/invoice/{{paymentId}}","host":["{{baseUrl}}"],"path":["payment","invoice","{{paymentId}}"]}}
+        },
+        {
+          "name": "[Webhook] SSLCommerz Success",
+          "description": "Called by SSLCommerz on successful payment. Marks order PROCESSING, generates PDF invoice, uploads to Cloudinary, emails user, then redirects to frontend.",
+          "request": {
+            "method":"POST","header":[{"key":"Content-Type","value":"application/x-www-form-urlencoded"}],
+            "url":{"raw":"{{baseUrl}}/payment/success?transactionId=MB-1714389012345-4821&amount=1198&status=success","host":["{{baseUrl}}"],"path":["payment","success"],"query":[{"key":"transactionId","value":"MB-1714389012345-4821"},{"key":"amount","value":"1198"},{"key":"status","value":"success"}]}
+          }
+        },
+        {
+          "name": "[Webhook] SSLCommerz Fail",
+          "request": {"method":"POST","header":[],"url":{"raw":"{{baseUrl}}/payment/fail?transactionId=MB-1714389012345-4821&amount=1198&status=fail","host":["{{baseUrl}}"],"path":["payment","fail"]}}
+        },
+        {
+          "name": "[Webhook] SSLCommerz Cancel",
+          "request": {"method":"POST","header":[],"url":{"raw":"{{baseUrl}}/payment/cancel?transactionId=MB-1714389012345-4821&amount=1198&status=cancel","host":["{{baseUrl}}"],"path":["payment","cancel"]}}
+        },
+        {
+          "name": "[IPN] Validate Payment",
+          "description": "SSLCommerz IPN — stores raw gateway validation data on the Payment record.",
+          "request": {
+            "method":"POST","header":[{"key":"Content-Type","value":"application/x-www-form-urlencoded"}],
+            "url":{"raw":"{{baseUrl}}/payment/validate-payment","host":["{{baseUrl}}"],"path":["payment","validate-payment"]},
+            "body":{"mode":"urlencoded","urlencoded":[{"key":"val_id","value":"your_val_id"},{"key":"tran_id","value":"MB-1714389012345-4821"}]}
+          }
+        }
+      ]
+    }
+  ]
+}

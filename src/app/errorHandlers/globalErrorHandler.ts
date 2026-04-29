@@ -1,9 +1,15 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { NextFunction, Request, Response } from "express";
+import { ZodError } from "zod";
+import mongoose from "mongoose";
 import AppError from "./appError";
 import { envVars } from "../config/env";
-
+import { handleZodError } from "../Helpers/handleZodError";
+import { handleCastError } from "../Helpers/handleCastError";
+import { handleDuplicateError } from "../Helpers/handleDuplicateError";
+import { handleValidationError } from "../Helpers/handleValidationError";
+import { TErrorSources } from "../interfaces/error.types";
 
 export const globalErrorHandler = (
   err: any,
@@ -11,52 +17,54 @@ export const globalErrorHandler = (
   res: Response,
   next: NextFunction
 ) => {
-  const errorSources: any = [];
   let statusCode = 500;
-  let message = `Something Went Wrong!! ${err.message}`;
-  if (err.code === 11000) {
-    const duplicate = err.message.match(/"([^"]*)"/);
-    message = `${duplicate[1]} Error Occured`;
-    statusCode = 400;
-  } else if (err.name === "CastError") {
-    statusCode = 400;
-    message = "Invalid MongoDB ObjectID PLEASE PROVIDE A VALID Id";
-  } else if(err.name === "ZodError"){
-    statusCode = 400;
-    message = "Zod Error"
-    err.issues.forEach((issue : any) => {
-        errorSources.push({
-            path: issue.path[issue.path.length - 1],
-            message : issue.message
-        })
+  let message = "Something went wrong!";
+  let errorSources: TErrorSources[] = [];
 
-    })
+  // === Zod Validation Error ===
+  if (err instanceof ZodError) {
+    const result = handleZodError(err);
+    statusCode = result.statusCode;
+    message = result.message;
+    errorSources = result.errorSources ?? [];
 
-  } else if (err.name === "ValidationError") {
-    statusCode = 400;
-    message = "Validation Error"
-    const errors = Object.values(err.errors);
+  // === Mongoose Cast Error (bad ObjectId) ===
+  } else if (err instanceof mongoose.Error.CastError) {
+    const result = handleCastError(err);
+    statusCode = result.statusCode;
+    message = result.message;
+    errorSources = result.errorSources ?? [];
 
-    errors.forEach((errorObject: any) => {
-      errorSources.push({
-        path: errorObject.path,
-        message: errorObject.message,
-      });
+  // === Mongoose Duplicate Key Error ===
+  } else if (err?.code === 11000) {
+    const result = handleDuplicateError(err);
+    statusCode = result.statusCode;
+    message = result.message;
+    errorSources = result.errorSources ?? [];
 
-    });
-    message = "Validation Error Occured";
+  // === Mongoose Validation Error ===
+  } else if (err instanceof mongoose.Error.ValidationError) {
+    const result = handleValidationError(err);
+    statusCode = result.statusCode;
+    message = result.message;
+    errorSources = result.errorSources ?? [];
+
+  // === Custom App Error ===
   } else if (err instanceof AppError) {
     statusCode = err.statusCode;
     message = err.message;
+    errorSources = [{ path: "", message: err.message }];
+
+  // === Generic Error ===
   } else if (err instanceof Error) {
-    statusCode = 500;
     message = err.message;
+    errorSources = [{ path: "", message: err.message }];
   }
+
   res.status(statusCode).json({
     success: false,
-    message: message,
+    message,
     errorSources,
-    err,
-    stack: envVars.NODE_ENV === "development" ? err.stack : null,
+    stack: envVars.NODE_ENV === "development" ? err?.stack : null,
   });
 };
