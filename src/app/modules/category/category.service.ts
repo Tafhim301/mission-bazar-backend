@@ -1,56 +1,54 @@
 import { StatusCodes } from "http-status-codes";
 import AppError from "../../errorHandlers/appError";
 import { Category } from "./category.model";
-import { ICategoryDocument } from "./category.interface";
+import { CategoryType, ICategoryDocument } from "./category.interface";
 
-const createCategory = async (payload: {
-  name: string;
-  description?: string;
-  image?: string;
-}): Promise<ICategoryDocument> => {
-  const existing = await Category.findOne({ name: { $regex: `^${payload.name}$`, $options: "i" } });
-  if (existing) {
-    throw new AppError(StatusCodes.CONFLICT, `Category "${payload.name}" already exists`);
-  }
-  return Category.create(payload);
+const createCategory = async (payload: Partial<ICategoryDocument>, imageUrl?: string): Promise<ICategoryDocument> => {
+  const exists = await Category.findOne({
+    name: { $regex: new RegExp(`^${payload.name}$`, "i") },
+    parent: payload.parent ?? null,
+  });
+  if (exists) throw new AppError(StatusCodes.CONFLICT, "A category with this name already exists at this level");
+
+  return Category.create({ ...payload, ...(imageUrl ? { image: imageUrl } : {}) });
 };
 
-const getAllCategories = async (): Promise<ICategoryDocument[]> => {
-  return Category.find({ isActive: true }).sort({ name: 1 });
+const getAllCategories = async (type?: CategoryType) => {
+  const filter: Record<string, unknown> = {};
+  if (type) filter.type = type;
+  return Category.find(filter).populate("parent", "name slug type").sort({ name: 1 });
 };
 
-const getAllCategoriesAdmin = async (): Promise<ICategoryDocument[]> => {
-  return Category.find().sort({ name: 1 });
+// Returns full tree: MAIN → SUB[] → PRODUCT[]
+const getCategoryTree = async () => {
+  const all = await Category.find({ isActive: true }).lean();
+  const mains = all.filter((c) => c.type === CategoryType.MAIN);
+  return mains.map((main) => ({
+    ...main,
+    children: all
+      .filter((s) => String(s.parent) === String(main._id))
+      .map((sub) => ({
+        ...sub,
+        children: all.filter((p) => String(p.parent) === String(sub._id)),
+      })),
+  }));
 };
 
-const getCategoryById = async (id: string): Promise<ICategoryDocument> => {
-  const cat = await Category.findById(id);
-  if (!cat) throw new AppError(StatusCodes.NOT_FOUND, `No category found with ID: ${id}`);
-  return cat;
-};
-
-const getCategoryBySlug = async (slug: string): Promise<ICategoryDocument> => {
-  const cat = await Category.findOne({ slug });
-  if (!cat) throw new AppError(StatusCodes.NOT_FOUND, `No category found with slug: ${slug}`);
-  return cat;
-};
-
-const updateCategory = async (
-  id: string,
-  payload: { name?: string; description?: string; isActive?: boolean; image?: string }
-): Promise<ICategoryDocument> => {
-  const cat = await Category.findByIdAndUpdate(id, { $set: payload }, { new: true, runValidators: true });
-  if (!cat) throw new AppError(StatusCodes.NOT_FOUND, `No category found with ID: ${id}`);
-  return cat;
+const updateCategory = async (id: string, payload: Partial<ICategoryDocument>, imageUrl?: string): Promise<ICategoryDocument> => {
+  const category = await Category.findByIdAndUpdate(
+    id,
+    { ...payload, ...(imageUrl ? { image: imageUrl } : {}) },
+    { new: true, runValidators: true }
+  );
+  if (!category) throw new AppError(StatusCodes.NOT_FOUND, "Category not found");
+  return category;
 };
 
 const deleteCategory = async (id: string): Promise<void> => {
-  const cat = await Category.findById(id);
-  if (!cat) throw new AppError(StatusCodes.NOT_FOUND, `No category found with ID: ${id}`);
-  await Category.findByIdAndDelete(id);
+  const hasChildren = await Category.exists({ parent: id });
+  if (hasChildren) throw new AppError(StatusCodes.BAD_REQUEST, "Cannot delete a category that has sub-categories");
+  const cat = await Category.findByIdAndDelete(id);
+  if (!cat) throw new AppError(StatusCodes.NOT_FOUND, "Category not found");
 };
 
-export const CategoryService = {
-  createCategory, getAllCategories, getAllCategoriesAdmin,
-  getCategoryById, getCategoryBySlug, updateCategory, deleteCategory,
-};
+export const CategoryService = { createCategory, getAllCategories, getCategoryTree, updateCategory, deleteCategory };

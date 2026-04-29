@@ -1,51 +1,66 @@
 import { Document, Types } from "mongoose";
 
-// === Enums ===================================================================
-
 export enum UserRole {
-  USER = "USER",
+  USER  = "USER",
   ADMIN = "ADMIN",
-  VENDOR = "VENDOR",
+  AGENT = "AGENT",
 }
 
 export enum UserStatus {
-  ACTIVE = "ACTIVE",
+  ACTIVE   = "ACTIVE",
   INACTIVE = "INACTIVE",
-  BLOCKED = "BLOCKED",
+  BLOCKED  = "BLOCKED",
 }
 
 export enum ApprovalStatus {
-  PENDING = "PENDING",
-  APPROVED = "APPROVED",
+  PENDING   = "PENDING",
+  APPROVED  = "APPROVED",
   SUSPENDED = "SUSPENDED",
 }
 
-// === Core User Shape (plain data, used in service layer) =====================
+export enum AddressLabel {
+  HOME   = "HOME",
+  OFFICE = "OFFICE",
+  OTHERS = "OTHERS",
+}
+
+export interface IAddress {
+  label: AddressLabel;
+  contactName: string;    // delivery recipient name
+  contactPhone: string;   // delivery recipient phone (+880)
+  street: string;         // Street, House/Apartment/Unit
+  landmark?: string;      // nearby landmark or direction
+  district: string;       // BD district
+  zone: string;           // zone within district
+  area: string;           // area within zone
+  isDefault: boolean;
+}
+
+export interface ICartItem {
+  product: Types.ObjectId;
+  quantity: number;
+}
 
 export interface IUser {
   name: string;
-  phone: string;           // stored as string to preserve leading zeros / intl format
-  email?: string;
+  email: string;          // primary identifier — required, unique
+  phone?: string;         // optional
   password: string;
   role: UserRole;
   status: UserStatus;
   approvalStatus: ApprovalStatus;
   profileImage?: string;
+  googleId?: string;
+  isVerified: boolean;    // true after OTP email verification
+  address: IAddress[];
+  cart: ICartItem[];
+  purchasedProducts: Types.ObjectId[];
+  reviews: Types.ObjectId[];
   isDeleted: boolean;
   passwordChangedAt?: Date;
-  wallet?: Types.ObjectId;
-  transactions?: Types.ObjectId[];
 }
 
-// === Mongoose Document (adds instance methods) ================================
-
 export interface IUserDocument extends IUser, Document {
-  /** Compare a plain-text password against the stored bcrypt hash. */
   isPasswordMatch(plainPassword: string): Promise<boolean>;
-
-  /**
-   * Returns true if the JWT was issued BEFORE the last password change.
-   * A true result means the token must be rejected.
-   */
   isJWTIssuedBeforePasswordChange(jwtIssuedAt: number): boolean;
 }

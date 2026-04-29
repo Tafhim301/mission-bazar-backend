@@ -1,19 +1,30 @@
 import { Document, Types } from "mongoose";
 
 export enum OrderStatus {
-  PENDING = "PENDING",
+  PENDING    = "PENDING",
   PROCESSING = "PROCESSING",
-  SHIPPED = "SHIPPED",
-  DELIVERED = "DELIVERED",
-  CANCELLED = "CANCELLED",
-  FAILED = "FAILED",
+  SHIPPED    = "SHIPPED",
+  DELIVERED  = "DELIVERED",
+  CANCELLED  = "CANCELLED",
+  FAILED     = "FAILED",
+}
+
+export enum PaymentMethod {
+  SSLCOMMERZ = "SSLCOMMERZ",
+  COD        = "COD",
+}
+
+export enum OrderPaymentStatus {
+  PENDING  = "PENDING",
+  PAID     = "PAID",
+  FAILED   = "FAILED",
 }
 
 export interface IOrderItem {
   product: Types.ObjectId;
-  name: string;         // snapshot at order time
-  image: string;        // snapshot
-  price: number;        // effective price (discountPrice if set, else price)
+  name: string;
+  image: string;
+  price: number;
   quantity: number;
 }
 
@@ -29,11 +40,18 @@ export interface IOrder {
   user: Types.ObjectId;
   items: IOrderItem[];
   shippingAddress: IShippingAddress;
-  itemsTotal: number;       // sum of item.price * item.quantity
-  shippingCharge: number;   // flat fee
-  totalAmount: number;      // itemsTotal + shippingCharge
+  itemsTotal: number;
+  shippingCharge: number;
+  totalAmount: number;
   status: OrderStatus;
-  payment?: Types.ObjectId; // ref: Payment — set after payment record created
+  paymentMethod: PaymentMethod;
+  paymentStatus: OrderPaymentStatus;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  paymentDetails?: any;       // raw SSLCommerz IPN payload
+  transactionId?: string;     // from SSLCommerz or generated for COD ref
+  invoiceId?: string;
+  invoiceUrl?: string;
+  payment?: Types.ObjectId;   // ref: Payment (SSLCommerz only)
   note?: string;
 }
 

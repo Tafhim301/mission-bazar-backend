@@ -1,244 +1,112 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { StatusCodes } from "http-status-codes";
 import AppError from "../../errorHandlers/appError";
 import { Product } from "./product.model";
-import { IProductDocument, ProductStatus } from "./product.interface";
-import { QueryBuilder } from "../../utils/queryBuilder";
-import { productSearchableFields } from "./product.constant";
+import { IProductDocument, DiscountType } from "./product.interface";
 import { deleteFromCloudinary } from "../../config/cloudinary";
+import { QueryBuilder } from "../../utils/queryBuilder";
 
-// === Types ===================================================================
+// === Utility: compute effective price ========================================
+// quantity >= 12 uses wholesalePrice; otherwise singleItemPrice.
+// Then applies discount (% or flat).
+export const computeEffectivePrice = (product: IProductDocument, quantity: number): number => {
+  const base = (quantity >= 12 && product.wholesalePrice != null)
+    ? product.wholesalePrice
+    : product.singleItemPrice;
 
-interface ICreateProductPayload {
-  name: string;
-  description?: string;
-  price: number;
-  discountPrice?: number;
-  category: string;
-  brand?: string;
-  stock: number;
-  tags?: string[];
-  specifications?: { key: string; value: string }[];
-  status?: ProductStatus;
-  images?: string[];
-  imagePublicIds?: string[];
-  vendor: string;
-}
+  if (product.discount == null || !product.discountType) return base;
 
-interface IUpdateProductPayload {
-  name?: string;
-  description?: string;
-  price?: number;
-  discountPrice?: number;
-  category?: string;
-  brand?: string;
-  stock?: number;
-  tags?: string[];
-  specifications?: { key: string; value: string }[];
-  deleteImages?: string[];
-  newImages?: string[];
-  newImagePublicIds?: string[];
-}
-
-// === Create Product ==========================================================
-
-const createProduct = async (
-  payload: ICreateProductPayload
-): Promise<IProductDocument> => {
-  const product = await Product.create(payload);
-  return product;
+  if (product.discountType === DiscountType.PERCENTAGE) {
+    return +(base * (1 - product.discount / 100)).toFixed(2);
+  }
+  return Math.max(0, base - product.discount);
 };
 
-// === Get All Products (public, with QueryBuilder) ============================
+const createProduct = async (
+  vendorId: string,
+  payload: Partial<IProductDocument>,
+  imageFiles: Express.Multer.File[]
+): Promise<IProductDocument> => {
+  const images       = imageFiles.map((f) => (f as any).path);
+  const imagePublicIds = imageFiles.map((f) => (f as any).filename);
+
+  return Product.create({ ...payload, vendor: vendorId, images, imagePublicIds });
+};
 
 const getAllProducts = async (query: Record<string, string>) => {
   const productQuery = new QueryBuilder(
-    Product.find({ status: ProductStatus.ACTIVE }).populate("vendor", "name phone"),
+    Product.find().populate("category", "name slug type"),
     query
   )
-    .search(productSearchableFields)
+    .search(["name", "brand", "tags"])
     .filter()
     .sort()
     .fields()
     .paginate();
 
   const products = await productQuery.build();
-  const meta = await productQuery.getMeta();
+  const meta     = await productQuery.getMeta();
   return { products, meta };
 };
-
-// === Get All Products for Admin/Vendor =======================================
-
-const getAllProductsAdmin = async (
-  query: Record<string, string>,
-  vendorId?: string
-) => {
-  const baseFilter = vendorId ? { vendor: vendorId } : {};
-  const productQuery = new QueryBuilder(
-    Product.find(baseFilter).populate("vendor", "name phone"),
-    query
-  )
-    .search(productSearchableFields)
-    .filter()
-    .sort()
-    .fields()
-    .paginate();
-
-  const products = await productQuery.build();
-  const meta = await productQuery.getMeta();
-  return { products, meta };
-};
-
-// === Get Single Product by ID ================================================
 
 const getProductById = async (id: string): Promise<IProductDocument> => {
-  const product = await Product.findById(id).populate("vendor", "name phone");
-  if (!product) {
-    throw new AppError(StatusCodes.NOT_FOUND, `No product found with ID: ${id}`);
-  }
+  const product = await Product.findById(id)
+    .populate("category", "name slug type")
+    .populate("vendor", "name email");
+  if (!product) throw new AppError(StatusCodes.NOT_FOUND, "Product not found");
   return product;
 };
-
-// === Get Single Product by Slug ==============================================
 
 const getProductBySlug = async (slug: string): Promise<IProductDocument> => {
-  const product = await Product.findOne({ slug }).populate("vendor", "name phone");
-  if (!product) {
-    throw new AppError(StatusCodes.NOT_FOUND, `No product found with slug: ${slug}`);
-  }
+  const product = await Product.findOne({ slug })
+    .populate("category", "name slug type")
+    .populate("vendor", "name");
+  if (!product) throw new AppError(StatusCodes.NOT_FOUND, "Product not found");
   return product;
 };
-
-// === Update Product ==========================================================
 
 const updateProduct = async (
-  productId: string,
-  requesterId: string,
-  requesterRole: string,
-  payload: IUpdateProductPayload
+  id: string,
+  payload: Partial<IProductDocument>,
+  imageFiles: Express.Multer.File[]
 ): Promise<IProductDocument> => {
-  const existing = await Product.findById(productId).select("+imagePublicIds");
-  if (!existing) {
-    throw new AppError(StatusCodes.NOT_FOUND, `No product found with ID: ${productId}`);
-  }
+  const product = await Product.findById(id).select("+imagePublicIds");
+  if (!product) throw new AppError(StatusCodes.NOT_FOUND, "Product not found");
 
-  // Vendors can only edit their own products; admins can edit any
-  if (
-    requesterRole === "VENDOR" &&
-    String(existing.vendor) !== requesterId
-  ) {
-    throw new AppError(
-      StatusCodes.FORBIDDEN,
-      "You can only update your own products"
+  // Handle image deletions
+  const toDelete: string[] = (payload.deleteImages as unknown as string[]) ?? [];
+  if (toDelete.length) {
+    await Promise.all(toDelete.map((url) => deleteFromCloudinary(url).catch(console.error)));
+    product.images       = product.images.filter((u) => !toDelete.includes(u));
+    product.imagePublicIds = product.imagePublicIds.filter(
+      (_, i) => !toDelete.includes(product.images[i])
     );
   }
 
-  // Merge incoming images with existing ones
-  let updatedImages = [...existing.images];
-  let updatedPublicIds = [...existing.imagePublicIds];
-
-  if (payload.newImages?.length) {
-    updatedImages = [...updatedImages, ...payload.newImages];
-    updatedPublicIds = [
-      ...updatedPublicIds,
-      ...(payload.newImagePublicIds ?? []),
-    ];
+  // Append new images
+  if (imageFiles.length) {
+    product.images.push(...imageFiles.map((f) => (f as any).path));
+    product.imagePublicIds.push(...imageFiles.map((f) => (f as any).filename));
   }
 
-  // Remove images flagged for deletion (match by URL)
-  const toDelete = payload.deleteImages ?? [];
-  if (toDelete.length) {
-    const deleteSet = new Set(toDelete);
-    const keep: string[] = [];
-    const keepIds: string[] = [];
-    const cloudinaryDeleteIds: string[] = [];
-
-    updatedImages.forEach((url, i) => {
-      if (deleteSet.has(url)) {
-        if (updatedPublicIds[i]) cloudinaryDeleteIds.push(updatedPublicIds[i]);
-      } else {
-        keep.push(url);
-        keepIds.push(updatedPublicIds[i] ?? "");
-      }
-    });
-
-    updatedImages = keep;
-    updatedPublicIds = keepIds;
-
-    // Fire-and-forget Cloudinary cleanup
-    if (cloudinaryDeleteIds.length) {
-      Promise.all(cloudinaryDeleteIds.map((id) => deleteFromCloudinary(id))).catch(
-        console.error
-      );
-    }
-  }
-
-  const { deleteImages, newImages, newImagePublicIds, ...rest } = payload;
-  void deleteImages; void newImages; void newImagePublicIds;
-
-  const updated = await Product.findByIdAndUpdate(
-    productId,
-    {
-      $set: {
-        ...rest,
-        images: updatedImages,
-        imagePublicIds: updatedPublicIds,
-      },
-    },
-    { new: true, runValidators: true }
-  ).populate("vendor", "name phone");
-
-  return updated as IProductDocument;
-};
-
-// === Update Product Status (Admin) ===========================================
-
-const updateProductStatus = async (
-  productId: string,
-  status: ProductStatus
-): Promise<IProductDocument> => {
-  const product = await Product.findByIdAndUpdate(
-    productId,
-    { $set: { status } },
-    { new: true }
-  );
-  if (!product) {
-    throw new AppError(StatusCodes.NOT_FOUND, `No product found with ID: ${productId}`);
-  }
+  delete (payload as any).deleteImages;
+  Object.assign(product, payload);
+  await product.save();
   return product;
 };
 
-// === Soft Delete =============================================================
-
-const deleteProduct = async (
-  productId: string,
-  requesterId: string,
-  requesterRole: string
-): Promise<void> => {
-  const existing = await Product.findById(productId).select("+imagePublicIds");
-  if (!existing) {
-    throw new AppError(StatusCodes.NOT_FOUND, `No product found with ID: ${productId}`);
-  }
-  if (
-    requesterRole === "VENDOR" &&
-    String(existing.vendor) !== requesterId
-  ) {
-    throw new AppError(
-      StatusCodes.FORBIDDEN,
-      "You can only delete your own products"
-    );
-  }
-  await Product.findByIdAndUpdate(productId, { $set: { isDeleted: true } });
+const updateProductStatus = async (id: string, status: string): Promise<IProductDocument> => {
+  const product = await Product.findByIdAndUpdate(id, { status }, { new: true });
+  if (!product) throw new AppError(StatusCodes.NOT_FOUND, "Product not found");
+  return product;
 };
 
-// === Exports =================================================================
+const deleteProduct = async (id: string): Promise<void> => {
+  const product = await Product.findByIdAndUpdate(id, { isDeleted: true });
+  if (!product) throw new AppError(StatusCodes.NOT_FOUND, "Product not found");
+};
 
 export const ProductService = {
-  createProduct,
-  getAllProducts,
-  getAllProductsAdmin,
-  getProductById,
-  getProductBySlug,
-  updateProduct,
-  updateProductStatus,
-  deleteProduct,
+  createProduct, getAllProducts, getProductById, getProductBySlug,
+  updateProduct, updateProductStatus, deleteProduct, computeEffectivePrice,
 };

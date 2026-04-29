@@ -6,32 +6,13 @@ import { checkAuth } from "../../middlewares/checkAuth";
 
 const router = Router();
 
-// POST /api/v1/auth/register
-router.post(
-  "/register",
-  validateRequest(AuthValidation.registerSchema),
-  AuthController.register
-);
-
-// POST /api/v1/auth/login
-router.post(
-  "/login",
-  validateRequest(AuthValidation.loginSchema),
-  AuthController.login
-);
-
-// POST /api/v1/auth/refresh-token
-router.post("/refresh-token", AuthController.refreshToken);
-
-// POST /api/v1/auth/logout
-router.post("/logout", checkAuth(), AuthController.logout);
-
-// PATCH /api/v1/auth/change-password
-router.patch(
-  "/change-password",
-  checkAuth(),
-  validateRequest(AuthValidation.changePasswordSchema),
-  AuthController.changePassword
-);
+router.post("/register",       validateRequest(AuthValidation.registerSchema),       AuthController.register);
+router.post("/verify-email",   validateRequest(AuthValidation.verifyEmailSchema),    AuthController.verifyEmail);
+router.post("/login",          validateRequest(AuthValidation.loginSchema),           AuthController.login);
+router.post("/refresh-token",  AuthController.refreshToken);
+router.post("/logout",         checkAuth(), AuthController.logout);
+router.post("/forgot-password",validateRequest(AuthValidation.forgotPasswordSchema), AuthController.forgotPassword);
+router.post("/reset-password", validateRequest(AuthValidation.resetPasswordSchema),  AuthController.resetPassword);
+router.patch("/change-password", checkAuth(), validateRequest(AuthValidation.changePasswordSchema), AuthController.changePassword);
 
 export const authRoutes = router;

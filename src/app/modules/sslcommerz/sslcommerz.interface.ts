@@ -3,7 +3,7 @@ export interface ISSLCommerzPayload {
   transactionId: string;
   name: string;
   email: string;
-  phoneNumber: string;
+  phoneNumber?: string;
   address: string;
 }
 

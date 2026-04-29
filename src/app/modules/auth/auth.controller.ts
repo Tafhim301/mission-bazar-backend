@@ -5,89 +5,54 @@ import { sendResponse } from "../../utils/sendResponse";
 import { setAuthCookie } from "../../utils/setCookie";
 import { AuthService } from "./auth.service";
 
-// === Register ================================================================
-
 const register = catchAsync(async (req: Request, res: Response) => {
-  const { user, tokens } = await AuthService.register(req.body);
-  setAuthCookie(res, tokens);
-  sendResponse(res, {
-    statusCode: StatusCodes.CREATED,
-    success: true,
-    message: "Account created successfully",
-    data: { user, accessToken: tokens.accessToken },
-  });
+  const result = await AuthService.register(req.body);
+  sendResponse(res, { statusCode: StatusCodes.CREATED, success: true, message: result.message, data: null });
 });
 
-// === Login ===================================================================
+const verifyEmail = catchAsync(async (req: Request, res: Response) => {
+  const { user, tokens } = await AuthService.verifyEmail(req.body);
+  setAuthCookie(res, tokens);
+  sendResponse(res, { statusCode: StatusCodes.OK, success: true, message: "Email verified. Welcome to Mission Bazar!", data: { user, accessToken: tokens.accessToken } });
+});
 
 const login = catchAsync(async (req: Request, res: Response) => {
   const { user, tokens } = await AuthService.login(req.body);
   setAuthCookie(res, tokens);
-  sendResponse(res, {
-    statusCode: StatusCodes.OK,
-    success: true,
-    message: "Logged in successfully",
-    data: { user, accessToken: tokens.accessToken },
-  });
+  sendResponse(res, { statusCode: StatusCodes.OK, success: true, message: "Logged in successfully", data: { user, accessToken: tokens.accessToken } });
 });
-
-// === Refresh Token ===========================================================
 
 const refreshToken = catchAsync(async (req: Request, res: Response) => {
   const token: string | undefined = req.cookies?.refreshToken;
-
-  if (!token) {
-    return sendResponse(res, {
-      statusCode: StatusCodes.UNAUTHORIZED,
-      success: false,
-      message: "Refresh token is missing. Please login again",
-      data: null,
-    });
-  }
-
+  if (!token) return sendResponse(res, { statusCode: StatusCodes.UNAUTHORIZED, success: false, message: "Refresh token missing", data: null });
   const { accessToken } = await AuthService.refreshToken(token);
-  sendResponse(res, {
-    statusCode: StatusCodes.OK,
-    success: true,
-    message: "Access token refreshed successfully",
-    data: { accessToken },
-  });
+  sendResponse(res, { statusCode: StatusCodes.OK, success: true, message: "Token refreshed", data: { accessToken } });
 });
-
-// === Logout ==================================================================
 
 const logout = catchAsync(async (_req: Request, res: Response) => {
   res.clearCookie("accessToken");
   res.clearCookie("refreshToken");
-  sendResponse(res, {
-    statusCode: StatusCodes.OK,
-    success: true,
-    message: "Logged out successfully",
-    data: null,
-  });
+  sendResponse(res, { statusCode: StatusCodes.OK, success: true, message: "Logged out successfully", data: null });
 });
 
-// === Change Password =========================================================
+const forgotPassword = catchAsync(async (req: Request, res: Response) => {
+  const result = await AuthService.forgotPassword(req.body);
+  sendResponse(res, { statusCode: StatusCodes.OK, success: true, message: result.message, data: null });
+});
+
+const resetPassword = catchAsync(async (req: Request, res: Response) => {
+  const result = await AuthService.resetPassword(req.body);
+  sendResponse(res, { statusCode: StatusCodes.OK, success: true, message: result.message, data: null });
+});
 
 const changePassword = catchAsync(async (req: Request, res: Response) => {
   await AuthService.changePassword(req.user!.userId, req.body);
-  // Clear cookies to force re-login with new password
   res.clearCookie("accessToken");
   res.clearCookie("refreshToken");
-  sendResponse(res, {
-    statusCode: StatusCodes.OK,
-    success: true,
-    message: "Password changed successfully. Please login again",
-    data: null,
-  });
+  sendResponse(res, { statusCode: StatusCodes.OK, success: true, message: "Password changed. Please log in again.", data: null });
 });
 
-// === Exports =================================================================
-
 export const AuthController = {
-  register,
-  login,
-  refreshToken,
-  logout,
-  changePassword,
+  register, verifyEmail, login, refreshToken, logout,
+  forgotPassword, resetPassword, changePassword,
 };

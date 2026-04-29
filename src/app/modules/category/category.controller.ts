@@ -3,41 +3,34 @@ import { StatusCodes } from "http-status-codes";
 import { catchAsync } from "../../utils/catchAsync";
 import { sendResponse } from "../../utils/sendResponse";
 import { CategoryService } from "./category.service";
-import { avatarUpload } from "../../middlewares/upload";
+import { CategoryType } from "./category.interface";
 
 const createCategory = catchAsync(async (req: Request, res: Response) => {
-  const image = (req.file as Express.Multer.File | undefined)?.path;
-  const cat = await CategoryService.createCategory({ ...req.body, image });
-  sendResponse(res, { statusCode: StatusCodes.CREATED, success: true, message: "Category created successfully", data: cat });
+  const imageUrl = req.file ? (req.file as any).path : undefined;
+  const category = await CategoryService.createCategory(req.body, imageUrl);
+  sendResponse(res, { statusCode: StatusCodes.CREATED, success: true, message: "Category created", data: category });
 });
 
-const getAllCategories = catchAsync(async (_req: Request, res: Response) => {
-  const cats = await CategoryService.getAllCategories();
-  sendResponse(res, { statusCode: StatusCodes.OK, success: true, message: "Categories retrieved successfully", data: cats });
+const getAllCategories = catchAsync(async (req: Request, res: Response) => {
+  const type = req.query.type as CategoryType | undefined;
+  const categories = await CategoryService.getAllCategories(type);
+  sendResponse(res, { statusCode: StatusCodes.OK, success: true, message: "Categories retrieved", data: categories });
 });
 
-const getAllCategoriesAdmin = catchAsync(async (_req: Request, res: Response) => {
-  const cats = await CategoryService.getAllCategoriesAdmin();
-  sendResponse(res, { statusCode: StatusCodes.OK, success: true, message: "Categories retrieved successfully", data: cats });
-});
-
-const getCategoryById = catchAsync(async (req: Request, res: Response) => {
-  const cat = await CategoryService.getCategoryById(req.params.id);
-  sendResponse(res, { statusCode: StatusCodes.OK, success: true, message: "Category retrieved successfully", data: cat });
+const getCategoryTree = catchAsync(async (_req: Request, res: Response) => {
+  const tree = await CategoryService.getCategoryTree();
+  sendResponse(res, { statusCode: StatusCodes.OK, success: true, message: "Category tree retrieved", data: tree });
 });
 
 const updateCategory = catchAsync(async (req: Request, res: Response) => {
-  const image = (req.file as Express.Multer.File | undefined)?.path;
-  const cat = await CategoryService.updateCategory(req.params.id, { ...req.body, ...(image ? { image } : {}) });
-  sendResponse(res, { statusCode: StatusCodes.OK, success: true, message: "Category updated successfully", data: cat });
+  const imageUrl = req.file ? (req.file as any).path : undefined;
+  const category = await CategoryService.updateCategory(req.params.id, req.body, imageUrl);
+  sendResponse(res, { statusCode: StatusCodes.OK, success: true, message: "Category updated", data: category });
 });
 
 const deleteCategory = catchAsync(async (req: Request, res: Response) => {
   await CategoryService.deleteCategory(req.params.id);
-  sendResponse(res, { statusCode: StatusCodes.OK, success: true, message: "Category deleted successfully", data: null });
+  sendResponse(res, { statusCode: StatusCodes.OK, success: true, message: "Category deleted", data: null });
 });
 
-export const CategoryController = {
-  createCategory, getAllCategories, getAllCategoriesAdmin,
-  getCategoryById, updateCategory, deleteCategory,
-};
+export const CategoryController = { createCategory, getAllCategories, getCategoryTree, updateCategory, deleteCategory };

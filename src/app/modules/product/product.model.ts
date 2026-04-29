@@ -1,79 +1,67 @@
 import { model, Schema } from "mongoose";
-import { IProduct, IProductDocument, ProductStatus } from "./product.interface";
+import { DiscountType, IProduct, IProductDocument, IVariant, ProductStatus } from "./product.interface";
 
-const specificationSchema = new Schema<{ key: string; value: string }>(
+const specSchema = new Schema<{ key: string; value: string }>(
   { key: { type: String, required: true }, value: { type: String, required: true } },
+  { _id: false }
+);
+
+const variantSchema = new Schema<IVariant>(
+  { label: { type: String, required: true }, value: { type: String, required: true }, image: { type: String } },
   { _id: false }
 );
 
 const productSchema = new Schema<IProductDocument>(
   {
-    name: { type: String, required: true, trim: true },
-    slug: { type: String, unique: true, trim: true },
-    description: { type: String, trim: true },
-    price: { type: Number, required: true, min: 0 },
-    discountPrice: {
-      type: Number, min: 0,
-      validate: {
-        validator: function (this: IProduct, v: number) { return v < this.price; },
-        message: "Discount price must be less than the regular price",
-      },
-    },
-    images: { type: [String], default: [] },
-    imagePublicIds: { type: [String], default: [], select: false },
-    category: { type: Schema.Types.ObjectId, ref: "Category", required: true },
-    brand: { type: String, trim: true },
-    stock: { type: Number, required: true, min: 0, default: 0 },
-    sold: { type: Number, default: 0, min: 0 },
-    tags: { type: [String], default: [] },
-    specifications: { type: [specificationSchema], default: [] },
-    status: { type: String, enum: Object.values(ProductStatus), default: ProductStatus.DRAFT },
-    isDeleted: { type: Boolean, default: false },
-    vendor: { type: Schema.Types.ObjectId, ref: "User", required: true },
+    name:            { type: String, required: true, trim: true },
+    slug:            { type: String, unique: true, trim: true },
+    sku:             { type: String, trim: true, sparse: true },
+    description:     { type: String, trim: true },
+    singleItemPrice: { type: Number, required: true, min: 0 },
+    wholesalePrice:  { type: Number, min: 0 },
+    discount:        { type: Number, min: 0 },
+    discountType:    { type: String, enum: Object.values(DiscountType) },
+    images:          { type: [String], default: [] },
+    imagePublicIds:  { type: [String], default: [], select: false },
+    variants:        { type: [variantSchema], default: [] },
+    category:        { type: Schema.Types.ObjectId, ref: "Category", required: true },
+    brand:           { type: String, trim: true },
+    stock:           { type: Number, required: true, min: 0, default: 0 },
+    sold:            { type: Number, default: 0, min: 0 },
+    tags:            { type: [String], default: [] },
+    specifications:  { type: [specSchema], default: [] },
+    avgRating:       { type: Number, default: 0, min: 0, max: 5 },
+    totalReviews:    { type: Number, default: 0, min: 0 },
+    freeShipping:    { type: Boolean, default: false },
+    status:          { type: String, enum: Object.values(ProductStatus), default: ProductStatus.DRAFT },
+    isDeleted:       { type: Boolean, default: false },
+    vendor:          { type: Schema.Types.ObjectId, ref: "User", required: true },
   },
   {
-    timestamps: true,
-    versionKey: false,
-    toJSON: {
-      transform: (_doc, ret: Record<string, unknown>) => {
-        delete ret.imagePublicIds;
-        return ret;
-      },
-    },
+    timestamps: true, versionKey: false,
+    toJSON: { transform: (_doc, ret: Record<string, unknown>) => { delete ret.imagePublicIds; return ret; } },
   }
 );
-
-// === Indexes =================================================================
-// slug is already unique:true above; the explicit index aids covered queries.
-// category + status together support the most common storefront query pattern.
 
 productSchema.index({ category: 1, status: 1 });
 productSchema.index({ vendor: 1 });
 productSchema.index({ status: 1 });
 productSchema.index({ tags: 1 });
-productSchema.index({ price: 1 });
+productSchema.index({ singleItemPrice: 1 });
+productSchema.index({ avgRating: -1 });
 productSchema.index({ createdAt: -1 });
-
-// === Auto-generate unique slug ===============================================
 
 const buildUniqueSlug = async (base: string, excludeId?: string): Promise<string> => {
   const baseSlug = base.toLowerCase().trim().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "");
-  let slug = baseSlug;
-  let counter = 0;
+  let slug = baseSlug; let counter = 0;
   const filter: Record<string, unknown> = { slug };
   if (excludeId) filter._id = { $ne: excludeId };
-
-  while (await Product.exists(filter)) {
-    slug = `${baseSlug}-${++counter}`;
-    filter.slug = slug;
-  }
+  while (await Product.exists(filter)) { slug = `${baseSlug}-${++counter}`; filter.slug = slug; }
   return slug;
 };
 
 productSchema.pre("save", async function (next) {
-  if (this.isModified("name")) {
-    this.slug = await buildUniqueSlug(this.name);
-  }
+  if (this.isModified("name")) this.slug = await buildUniqueSlug(this.name);
   next();
 });
 
@@ -87,11 +75,8 @@ productSchema.pre("findOneAndUpdate", async function (next) {
   next();
 });
 
-// === Auto-exclude soft-deleted docs ==========================================
-
-productSchema.pre(/^find/, function (this: ReturnType<typeof productSchema.pre>, next) {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  (this as any).find({ isDeleted: { $ne: true } });
+productSchema.pre(/^find/, function (this: any, next) {
+  this.find({ isDeleted: { $ne: true } });
   next();
 });
 

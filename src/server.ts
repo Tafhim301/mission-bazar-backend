@@ -3,61 +3,40 @@ import { Server } from "http";
 import mongoose from "mongoose";
 import app from "./app";
 import { envVars } from "./app/config/env";
+
 let server: Server;
+
 const startServer = async () => {
   try {
     await mongoose.connect(envVars.DB_URL);
-
-    console.log("connected to DB");
+    console.log("Connected to MongoDB");
     server = app.listen(envVars.PORT, () => {
-      console.log(`Server listenig to port ${envVars.PORT}`);
+      console.log(`Server listening on port ${envVars.PORT}`);
     });
   } catch (error) {
-    console.log(error);
+    console.error("Failed to start server:", error);
+    process.exit(1);
   }
 };
 
-(async () => {
-  await startServer();
-})();
+startServer();
 
 process.on("unhandledRejection", (err) => {
-  console.log("Unhandled Rejection detected... Server shtting down..", err);
-
-  if (server) {
-    server.close(() => {
-      process.exit(1);
-    });
-  }
-  process.exit(1);
+  console.error("Unhandled Rejection — shutting down:", err);
+  server?.close(() => process.exit(1));
 });
-process.on("SIGINT", () => {
-  console.log("SIGINT signal detected... Server shtting down..");
 
-  if (server) {
-    server.close(() => {
-      process.exit(1);
-    });
-  }
-  process.exit(1);
-});
-process.on("SIGTERM", () => {
-  console.log("SIGTERM signal detected... Server shtting down..");
-
-  if (server) {
-    server.close(() => {
-      process.exit(1);
-    });
-  }
-  process.exit(1);
-});
 process.on("uncaughtException", (err) => {
-  console.log("Uncaught Exception detected... Server shtting down..", err);
+  console.error("Uncaught Exception — shutting down:", err);
+  server?.close(() => process.exit(1));
+});
 
-  if (server) {
-    server.close(() => {
-      process.exit(1);
-    });
-  }
-  process.exit(1);
+process.on("SIGTERM", () => {
+  console.log("SIGTERM received — shutting down gracefully");
+  server?.close(() => process.exit(0));
+});
+
+process.on("SIGINT", () => {
+  console.log("SIGINT received — shutting down gracefully");
+  server?.close(() => process.exit(0));
 });

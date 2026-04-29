@@ -1,134 +1,145 @@
 import { StatusCodes } from "http-status-codes";
 import AppError from "../../errorHandlers/appError";
 import { User } from "./user.model";
-import { IUserDocument, UserStatus } from "./user.interface";
+import { IUserDocument } from "./user.interface";
+import { deleteFromCloudinary } from "../../config/cloudinary";
 import { QueryBuilder } from "../../utils/queryBuilder";
-import { userSearchableFields } from "./user.constant";
 
-// === Types ===================================================================
-
-interface IUpdateProfilePayload {
-  name?: string;
-  email?: string;
-  profileImage?: string;
-}
-
-// === Get My Profile ==========================================================
-
-const getMe = async (userId: string): Promise<IUserDocument> => {
-  const user = await User.findById(userId);
-  if (!user) {
-    throw new AppError(StatusCodes.NOT_FOUND, "User not found");
-  }
-  return user;
-};
-
-// === Update My Profile =======================================================
-
-const updateMe = async (
-  userId: string,
-  payload: IUpdateProfilePayload
-): Promise<IUserDocument> => {
-  if (payload.email) {
-    const emailTaken = await User.findOne({
-      email: payload.email,
-      _id: { $ne: userId },
-    });
-    if (emailTaken) {
-      throw new AppError(
-        StatusCodes.CONFLICT,
-        "This email address is already in use by another account"
-      );
-    }
-  }
-
-  const updatedUser = await User.findByIdAndUpdate(
-    userId,
-    { $set: payload },
-    { new: true, runValidators: true }
-  );
-
-  if (!updatedUser) {
-    throw new AppError(StatusCodes.NOT_FOUND, "User not found");
-  }
-  return updatedUser;
-};
-
-// === Get All Users (Admin) ===================================================
+// === Get All Users (Admin) ====================================================
 
 const getAllUsers = async (query: Record<string, string>) => {
   const userQuery = new QueryBuilder(User.find(), query)
-    .search(userSearchableFields)
+    .search(["name", "email", "phone"])
     .filter()
     .sort()
-    .fields()
     .paginate();
 
   const users = await userQuery.build();
-  const meta = await userQuery.getMeta();
-
+  const meta  = await userQuery.getMeta();
   return { users, meta };
 };
 
-// === Get User by ID (Admin) ==================================================
+// === Get Single User ==========================================================
 
-const getUserById = async (userId: string): Promise<IUserDocument> => {
-  const user = await User.findById(userId);
-  if (!user) {
-    throw new AppError(
-      StatusCodes.NOT_FOUND,
-      `No user found with ID: ${userId}`
-    );
-  }
+const getUserById = async (id: string): Promise<IUserDocument> => {
+  const user = await User.findById(id);
+  if (!user) throw new AppError(StatusCodes.NOT_FOUND, "User not found");
   return user;
 };
 
-// === Update User Status (Admin) ==============================================
+// === Update Profile ===========================================================
+
+const updateProfile = async (
+  userId: string,
+  payload: Partial<Pick<IUserDocument, "name" | "email" | "profileImage">>
+): Promise<IUserDocument> => {
+  const user = await User.findByIdAndUpdate(userId, payload, { new: true, runValidators: true });
+  if (!user) throw new AppError(StatusCodes.NOT_FOUND, "User not found");
+  return user;
+};
+
+// === Update Avatar ============================================================
+
+const updateAvatar = async (userId: string, imageUrl: string): Promise<IUserDocument> => {
+  const user = await User.findById(userId);
+  if (!user) throw new AppError(StatusCodes.NOT_FOUND, "User not found");
+
+  // Delete old avatar from Cloudinary if it exists
+  if (user.profileImage) {
+    await deleteFromCloudinary(user.profileImage).catch(console.error);
+  }
+
+  user.profileImage = imageUrl;
+  await user.save();
+  return user;
+};
+
+// === Address Management =======================================================
+
+const addAddress = async (userId: string, addressPayload: object): Promise<IUserDocument> => {
+  const user = await User.findById(userId);
+  if (!user) throw new AppError(StatusCodes.NOT_FOUND, "User not found");
+
+  // If marking as default, unset all others
+  if ((addressPayload as any).isDefault) {
+    user.address.forEach((a) => { a.isDefault = false; });
+  }
+
+  user.address.push(addressPayload as any);
+  await user.save();
+  return user;
+};
+
+const removeAddress = async (userId: string, addressId: string): Promise<IUserDocument> => {
+  const user = await User.findByIdAndUpdate(
+    userId,
+    { $pull: { address: { _id: addressId } } },
+    { new: true }
+  );
+  if (!user) throw new AppError(StatusCodes.NOT_FOUND, "User not found");
+  return user;
+};
+
+// === Cart Management ==========================================================
+
+const updateCart = async (
+  userId: string,
+  productId: string,
+  quantity: number
+): Promise<IUserDocument> => {
+  const user = await User.findById(userId);
+  if (!user) throw new AppError(StatusCodes.NOT_FOUND, "User not found");
+
+  const existingItem = user.cart.find((c) => String(c.product) === productId);
+
+  if (quantity === 0) {
+    // Remove from cart
+    user.cart = user.cart.filter((c) => String(c.product) !== productId);
+  } else if (existingItem) {
+    existingItem.quantity = quantity;
+  } else {
+    user.cart.push({ product: productId as any, quantity });
+  }
+
+  await user.save();
+  return user;
+};
+
+const clearCart = async (userId: string): Promise<void> => {
+  await User.findByIdAndUpdate(userId, { $set: { cart: [] } });
+};
+
+// === Admin: update user status ================================================
 
 const updateUserStatus = async (
   userId: string,
-  status: UserStatus
+  status: string
 ): Promise<IUserDocument> => {
   const user = await User.findByIdAndUpdate(
     userId,
-    { $set: { status } },
+    { status },
     { new: true, runValidators: true }
   );
-  if (!user) {
-    throw new AppError(
-      StatusCodes.NOT_FOUND,
-      `No user found with ID: ${userId}`
-    );
-  }
+  if (!user) throw new AppError(StatusCodes.NOT_FOUND, "User not found");
   return user;
 };
 
-// === Soft Delete (Admin) =====================================================
+// === Admin: soft-delete =======================================================
 
-const softDeleteUser = async (userId: string): Promise<void> => {
-  const user = await User.findById(userId);
-  if (!user) {
-    throw new AppError(
-      StatusCodes.NOT_FOUND,
-      `No user found with ID: ${userId}`
-    );
-  }
-  if (user.isDeleted) {
-    throw new AppError(
-      StatusCodes.BAD_REQUEST,
-      "This user has already been deleted"
-    );
-  }
-  await User.findByIdAndUpdate(userId, { $set: { isDeleted: true } });
+const deleteUser = async (userId: string): Promise<void> => {
+  const user = await User.findByIdAndUpdate(userId, { isDeleted: true });
+  if (!user) throw new AppError(StatusCodes.NOT_FOUND, "User not found");
 };
 
-// === Exports =================================================================
-
 export const UserService = {
-  getMe,
-  updateMe,
   getAllUsers,
   getUserById,
+  updateProfile,
+  updateAvatar,
+  addAddress,
+  removeAddress,
+  updateCart,
+  clearCart,
   updateUserStatus,
-  softDeleteUser,
+  deleteUser,
 };
