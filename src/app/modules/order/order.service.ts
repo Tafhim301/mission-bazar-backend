@@ -20,7 +20,7 @@ const SHIPPING_CHARGE = 60; // BDT flat rate
 const createOrder = async (
   userId: string,
   payload: {
-    items: { product: string; quantity: number }[];
+    items: { product: string; quantity: number; quantityNote?: string }[];
     shippingAddress: { fullName: string; phone: string; address: string; city: string; postalCode: string };
     paymentMethod: PaymentMethod;
     note?: string;
@@ -32,7 +32,7 @@ const createOrder = async (
   try {
     // 1. Validate & snapshot each product with correct pricing
     const resolvedItems = await Promise.all(
-      payload.items.map(async ({ product: productId, quantity }) => {
+      payload.items.map(async ({ product: productId, quantity, quantityNote }) => {
         const product = await Product.findById(productId).session(session);
         if (!product) throw new AppError(StatusCodes.NOT_FOUND, `Product not found: ${productId}`);
         if (product.status !== ProductStatus.ACTIVE)
@@ -40,12 +40,22 @@ const createOrder = async (
         if (product.stock < quantity)
           throw new AppError(StatusCodes.BAD_REQUEST, `Insufficient stock for "${product.name}". Available: ${product.stock}`);
 
+        // Enforce minimum order quantity
+        const moq = product.minOrderQty ?? 1;
+        if (quantity < moq)
+          throw new AppError(
+            StatusCodes.BAD_REQUEST,
+            `Minimum order quantity for "${product.name}" is ${moq} piece${moq !== 1 ? "s" : ""}` +
+              (product.moqNote ? ` (${product.moqNote})` : "")
+          );
+
         return {
-          product: product._id,
-          name:     product.name,
-          image:    product.images[0] ?? "",
-          price:    computeEffectivePrice(product, quantity),
+          product:      product._id,
+          name:         product.name,
+          image:        product.images[0] ?? "",
+          price:        computeEffectivePrice(product, quantity),
           quantity,
+          ...(quantityNote ? { quantityNote } : {}),
         };
       })
     );
@@ -158,7 +168,7 @@ const getAllOrders = async (query: Record<string, string>) => {
 const getOrderById = async (orderId: string, userId: string, role: string): Promise<IOrderDocument> => {
   const order = await Order.findById(orderId)
     .populate("user", "name phone email")
-    .populate("items.product", "name images singleItemPrice")
+    .populate("items.product", "name images singleItemPrice minOrderQty moqNote")
     .populate("payment", "status invoiceUrl transactionId amount");
   if (!order) throw new AppError(StatusCodes.NOT_FOUND, `Order not found: ${orderId}`);
   if (role === "USER" && String(order.user) !== userId)
@@ -174,7 +184,7 @@ const updateOrderStatus = async (orderId: string, status: OrderStatus): Promise<
   return order;
 };
 
-// === Cancel Order (User — PENDING only) ======================================
+// === Cancel Order (User - PENDING only) ======================================
 
 const cancelOrder = async (orderId: string, userId: string): Promise<void> => {
   const session = await mongoose.startSession();

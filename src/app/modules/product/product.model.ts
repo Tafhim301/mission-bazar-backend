@@ -13,34 +13,40 @@ const variantSchema = new Schema<IVariant>(
 
 const productSchema = new Schema<IProductDocument>(
   {
-    name:             { type: String, required: true, trim: true },
-    slug:             { type: String, unique: true, trim: true },
-    sku:              { type: String, trim: true, sparse: true },
-    description:      { type: String, trim: true },
-    singleItemPrice:  { type: Number, required: true, min: 0 },
-    wholesalePrice:   { type: Number, min: 0 },
-    wholesaleMinQty:  { type: Number, min: 1, default: 12 },
-    discount:         { type: Number, min: 0 },
-    discountType:     { type: String, enum: Object.values(DiscountType) },
-    images:           { type: [String], default: [] },
-    imagePublicIds:   { type: [String], default: [], select: false },
-    variants:         { type: [variantSchema], default: [] },
-    category:         { type: Schema.Types.ObjectId, ref: "Category", required: true },
-    brand:            { type: String, trim: true },
-    stock:            { type: Number, required: true, min: 0, default: 0 },
-    sold:             { type: Number, default: 0, min: 0 },
-    tags:             { type: [String], default: [] },
-    specifications:   { type: [specSchema], default: [] },
-    avgRating:        { type: Number, default: 0, min: 0, max: 5 },
-    totalReviews:     { type: Number, default: 0, min: 0 },
-    freeShipping:     { type: Boolean, default: false },
-    status:           { type: String, enum: Object.values(ProductStatus), default: ProductStatus.DRAFT },
-    isDeleted:        { type: Boolean, default: false },
-    vendor:           { type: Schema.Types.ObjectId, ref: "User", required: true },
+    name:               { type: String, required: true, trim: true },
+    slug:               { type: String, unique: true, trim: true },
+    sku:                { type: String, trim: true, sparse: true },
+    description:        { type: String, trim: true },
+    singleItemPrice:    { type: Number, required: true, min: 0 },
+    midWholesalePrice:  { type: Number, min: 0 },
+    midWholesaleMinQty: { type: Number, min: 2 },
+    wholesalePrice:     { type: Number, min: 0 },
+    wholesaleMinQty:    { type: Number, min: 2 },
+    // Minimum order quantity (enforced at order creation)
+    minOrderQty:        { type: Number, min: 1, default: 1 },
+    // Human-readable MOQ description, e.g. "Sold in lots of 50–200 pieces"
+    moqNote:            { type: String, trim: true, maxlength: 120 },
+    discount:           { type: Number, min: 0 },
+    discountType:       { type: String, enum: Object.values(DiscountType) },
+    images:             { type: [String], default: [] },
+    imagePublicIds:     { type: [String], default: [], select: false },
+    variants:           { type: [variantSchema], default: [] },
+    category:           { type: Schema.Types.ObjectId, ref: "Category", required: true },
+    brand:              { type: String, trim: true },
+    stock:              { type: Number, required: true, min: 0, default: 0 },
+    sold:               { type: Number, default: 0, min: 0 },
+    tags:               { type: [String], default: [] },
+    specifications:     { type: [specSchema], default: [] },
+    avgRating:          { type: Number, default: 0, min: 0, max: 5 },
+    totalReviews:       { type: Number, default: 0, min: 0 },
+    freeShipping:       { type: Boolean, default: false },
+    status:             { type: String, enum: Object.values(ProductStatus), default: ProductStatus.DRAFT },
+    isDeleted:          { type: Boolean, default: false },
+    vendor:             { type: Schema.Types.ObjectId, ref: "User", required: true },
   },
   {
     timestamps: true, versionKey: false,
-    toJSON: { transform: (_doc, ret: Record<string, unknown>) => { delete ret.imagePublicIds; return ret; } },
+    toJSON: { transform: (_doc, ret) => { delete (ret as Record<string, unknown>).imagePublicIds; return ret; } },
   }
 );
 
@@ -54,7 +60,8 @@ productSchema.index({ createdAt: -1 });
 
 const buildUniqueSlug = async (base: string, excludeId?: string): Promise<string> => {
   const baseSlug = base.toLowerCase().trim().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "");
-  let slug = baseSlug; let counter = 0;
+  let slug = baseSlug;
+  let counter = 0;
   const filter: Record<string, unknown> = { slug };
   if (excludeId) filter._id = { $ne: excludeId };
   while (await Product.exists(filter)) { slug = `${baseSlug}-${++counter}`; filter.slug = slug; }
@@ -76,8 +83,8 @@ productSchema.pre("findOneAndUpdate", async function (next) {
   next();
 });
 
-productSchema.pre(/^find/, function (this: any, next) {
-  this.find({ isDeleted: { $ne: true } });
+productSchema.pre(/^find/, function (this: ReturnType<typeof productSchema.pre>, next) {
+  (this as unknown as { find: (q: object) => void }).find({ isDeleted: { $ne: true } });
   next();
 });
 

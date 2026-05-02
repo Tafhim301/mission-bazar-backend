@@ -6,11 +6,13 @@ import {
 
 const orderItemSchema = new Schema<IOrderItem>(
   {
-    product:  { type: Schema.Types.ObjectId, ref: "Product", required: true },
-    name:     { type: String, required: true },
-    image:    { type: String, default: "" },
-    price:    { type: Number, required: true, min: 0 },
-    quantity: { type: Number, required: true, min: 1 },
+    product:      { type: Schema.Types.ObjectId, ref: "Product", required: true },
+    name:         { type: String, required: true },
+    image:        { type: String, default: "" },
+    price:        { type: Number, required: true, min: 0 },
+    quantity:     { type: Number, required: true, min: 1 },
+    // Buyer's optional text note about quantity, e.g. "Need 100-200 pieces, confirm exact qty"
+    quantityNote: { type: String, trim: true, maxlength: 200 },
   },
   { _id: false }
 );

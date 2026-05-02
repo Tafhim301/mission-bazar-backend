@@ -26,6 +26,8 @@ export interface IOrderItem {
   image: string;
   price: number;
   quantity: number;
+  /** Optional buyer note about quantity, e.g. "Need 100–200 pieces, confirm exact qty" */
+  quantityNote?: string;
 }
 
 export interface IShippingAddress {

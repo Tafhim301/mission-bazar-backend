@@ -25,8 +25,14 @@ export interface IProduct {
   sku?: string;
   description?: string;
   singleItemPrice: number;
+  midWholesalePrice?: number;
+  midWholesaleMinQty?: number;
   wholesalePrice?: number;
   wholesaleMinQty?: number;
+  /** Absolute minimum number of pieces a buyer must order */
+  minOrderQty?: number;
+  /** Human-readable quantity description, e.g. "Sold in lots of 50–200 pieces" */
+  moqNote?: string;
   discount?: number;
   discountType?: DiscountType;
   images: string[];
