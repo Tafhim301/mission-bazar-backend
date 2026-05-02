@@ -8,11 +8,27 @@ import { UserRole } from "../user/user.interface";
 
 const router = Router();
 
-router.get("/",     CategoryController.getAllCategories);
-router.get("/tree", CategoryController.getCategoryTree);
+// ── Public ────────────────────────────────────────────────────────────────────
+router.get("/",      CategoryController.getAllCategories);  // ?type=MAIN|SUB|SUB_SUB  &parent=<id>
+router.get("/tree",  CategoryController.getCategoryTree);   // full 3-level nested tree
+router.get("/leaf",  CategoryController.getLeafCategories); // all SUB_SUB (product-linkable)
+router.get("/:id",   CategoryController.getCategoryById);
 
-router.post("/",    checkAuth(UserRole.ADMIN), avatarUpload.single("image"), validateRequest(CategoryValidation.createCategorySchema), CategoryController.createCategory);
-router.patch("/:id", checkAuth(UserRole.ADMIN), avatarUpload.single("image"), validateRequest(CategoryValidation.updateCategorySchema), CategoryController.updateCategory);
+// ── Admin only ────────────────────────────────────────────────────────────────
+router.post(
+  "/",
+  checkAuth(UserRole.ADMIN),
+  avatarUpload.single("image"),
+  validateRequest(CategoryValidation.createCategorySchema),
+  CategoryController.createCategory
+);
+router.patch(
+  "/:id",
+  checkAuth(UserRole.ADMIN),
+  avatarUpload.single("image"),
+  validateRequest(CategoryValidation.updateCategorySchema),
+  CategoryController.updateCategory
+);
 router.delete("/:id", checkAuth(UserRole.ADMIN), CategoryController.deleteCategory);
 
 export const categoryRoutes = router;

@@ -14,9 +14,9 @@ export enum DiscountType {
 export interface ISpecification { key: string; value: string; }
 
 export interface IVariant {
-  label: string;   // e.g. "Color"
-  value: string;   // e.g. "White"
-  image?: string;  // variant-specific image URL
+  label: string;
+  value: string;
+  image?: string;
 }
 
 export interface IProduct {
@@ -24,8 +24,9 @@ export interface IProduct {
   slug: string;
   sku?: string;
   description?: string;
-  singleItemPrice: number;   // qty 1–11
-  wholesalePrice?: number;   // qty 12+
+  singleItemPrice: number;
+  wholesalePrice?: number;
+  wholesaleMinQty?: number;
   discount?: number;
   discountType?: DiscountType;
   images: string[];

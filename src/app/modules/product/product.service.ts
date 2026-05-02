@@ -5,17 +5,28 @@ import { Product } from "./product.model";
 import { IProductDocument, DiscountType } from "./product.interface";
 import { deleteFromCloudinary } from "../../config/cloudinary";
 import { QueryBuilder } from "../../utils/queryBuilder";
+import { Category } from "../category/category.model";
+import { CategoryType } from "../category/category.interface";
 
-// === Utility: compute effective price ========================================
-// quantity >= 12 uses wholesalePrice; otherwise singleItemPrice.
-// Then applies discount (% or flat).
+// ── Category leaf guard ───────────────────────────────────────────────────────
+export const assertProductCategory = async (categoryId: string) => {
+  const cat = await Category.findById(categoryId);
+  if (!cat) throw new AppError(StatusCodes.NOT_FOUND, "Category not found");
+  if (cat.type !== CategoryType.SUB_SUB)
+    throw new AppError(
+      StatusCodes.BAD_REQUEST,
+      `Products must be assigned a leaf (SUB_SUB) category — got "${cat.type}"`
+    );
+};
+
+// ── Compute effective price ───────────────────────────────────────────────────
 export const computeEffectivePrice = (product: IProductDocument, quantity: number): number => {
-  const base = (quantity >= 12 && product.wholesalePrice != null)
+  const minQty = product.wholesaleMinQty ?? 12;
+  const base = (quantity >= minQty && product.wholesalePrice != null)
     ? product.wholesalePrice
     : product.singleItemPrice;
 
   if (product.discount == null || !product.discountType) return base;
-
   if (product.discountType === DiscountType.PERCENTAGE) {
     return +(base * (1 - product.discount / 100)).toFixed(2);
   }
@@ -27,9 +38,9 @@ const createProduct = async (
   payload: Partial<IProductDocument>,
   imageFiles: Express.Multer.File[]
 ): Promise<IProductDocument> => {
-  const images       = imageFiles.map((f) => (f as any).path);
+  if (payload.category) await assertProductCategory(String(payload.category));
+  const images         = imageFiles.map((f) => (f as any).path);
   const imagePublicIds = imageFiles.map((f) => (f as any).filename);
-
   return Product.create({ ...payload, vendor: vendorId, images, imagePublicIds });
 };
 
@@ -73,17 +84,15 @@ const updateProduct = async (
   const product = await Product.findById(id).select("+imagePublicIds");
   if (!product) throw new AppError(StatusCodes.NOT_FOUND, "Product not found");
 
-  // Handle image deletions
   const toDelete: string[] = (payload.deleteImages as unknown as string[]) ?? [];
   if (toDelete.length) {
     await Promise.all(toDelete.map((url) => deleteFromCloudinary(url).catch(console.error)));
-    product.images       = product.images.filter((u) => !toDelete.includes(u));
+    product.images         = product.images.filter((u) => !toDelete.includes(u));
     product.imagePublicIds = product.imagePublicIds.filter(
       (_, i) => !toDelete.includes(product.images[i])
     );
   }
 
-  // Append new images
   if (imageFiles.length) {
     product.images.push(...imageFiles.map((f) => (f as any).path));
     product.imagePublicIds.push(...imageFiles.map((f) => (f as any).filename));
@@ -106,7 +115,24 @@ const deleteProduct = async (id: string): Promise<void> => {
   if (!product) throw new AppError(StatusCodes.NOT_FOUND, "Product not found");
 };
 
+const getVendorProducts = async (vendorId: string, query: Record<string, string>) => {
+  const productQuery = new QueryBuilder(
+    Product.find({ vendor: vendorId, status: "ACTIVE" }).populate("category", "name slug"),
+    query
+  )
+    .search(["name", "brand", "tags"])
+    .filter()
+    .sort()
+    .fields()
+    .paginate();
+
+  const products = await productQuery.build();
+  const meta     = await productQuery.getMeta();
+  return { products, meta };
+};
+
 export const ProductService = {
   createProduct, getAllProducts, getProductById, getProductBySlug,
-  updateProduct, updateProductStatus, deleteProduct, computeEffectivePrice,
+  updateProduct, updateProductStatus, deleteProduct, getVendorProducts,
+  computeEffectivePrice,
 };

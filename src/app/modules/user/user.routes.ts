@@ -21,6 +21,10 @@ router.delete("/me/address/:addressId", checkAuth(), UserController.removeAddres
 router.patch("/me/cart",  checkAuth(), validateRequest(UserValidation.updateCartSchema), UserController.updateCart);
 router.delete("/me/cart", checkAuth(), UserController.clearCart);
 
+
+// === Public: vendor store profile ============================================
+router.get("/vendor/:vendorId", UserController.getVendorProfile);
+
 // === Admin ===================================================================
 router.get("/",       checkAuth(UserRole.ADMIN), UserController.getAllUsers);
 router.get("/:id",    checkAuth(UserRole.ADMIN), UserController.getUserById);

@@ -48,7 +48,15 @@ const deleteProduct = catchAsync(async (req: Request, res: Response) => {
   sendResponse(res, { statusCode: StatusCodes.OK, success: true, message: "Product deleted", data: null });
 });
 
+const getVendorProducts = catchAsync(async (req: Request, res: Response) => {
+  const { products, meta } = await ProductService.getVendorProducts(
+    req.params.vendorId,
+    req.query as Record<string, string>
+  );
+  sendResponse(res, { statusCode: StatusCodes.OK, success: true, message: "Vendor products", data: products, meta });
+});
+
 export const ProductController = {
   createProduct, getAllProducts, getProductById, getProductBySlug,
-  updateProduct, updateProductStatus, deleteProduct,
+  updateProduct, updateProductStatus, deleteProduct, getVendorProducts,
 };

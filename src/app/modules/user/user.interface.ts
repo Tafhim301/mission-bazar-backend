@@ -26,13 +26,13 @@ export enum AddressLabel {
 
 export interface IAddress {
   label: AddressLabel;
-  contactName: string;    // delivery recipient name
-  contactPhone: string;   // delivery recipient phone (+880)
-  street: string;         // Street, House/Apartment/Unit
-  landmark?: string;      // nearby landmark or direction
-  district: string;       // BD district
-  zone: string;           // zone within district
-  area: string;           // area within zone
+  contactName: string;
+  contactPhone: string;
+  street: string;
+  landmark?: string;
+  district: string;
+  zone: string;
+  area: string;
   isDefault: boolean;
 }
 
@@ -43,19 +43,21 @@ export interface ICartItem {
 
 export interface IUser {
   name: string;
-  email: string;          // primary identifier — required, unique
-  phone?: string;         // optional
+  email: string;
+  phone?: string;
   password: string;
   role: UserRole;
   status: UserStatus;
   approvalStatus: ApprovalStatus;
   profileImage?: string;
   googleId?: string;
-  isVerified: boolean;    // true after OTP email verification
+  isVerified: boolean;
   address: IAddress[];
   cart: ICartItem[];
   purchasedProducts: Types.ObjectId[];
   reviews: Types.ObjectId[];
+  vendorAvgRating?: number;
+  vendorTotalReviews?: number;
   isDeleted: boolean;
   passwordChangedAt?: Date;
 }

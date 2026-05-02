@@ -131,6 +131,16 @@ const deleteUser = async (userId: string): Promise<void> => {
   if (!user) throw new AppError(StatusCodes.NOT_FOUND, "User not found");
 };
 
+
+// === Public: vendor profile ===================================================
+
+const getVendorProfile = async (vendorId: string) => {
+  const vendor = await User.findOne({ _id: vendorId, role: "AGENT", isDeleted: false })
+    .select("name profileImage vendorAvgRating vendorTotalReviews createdAt");
+  if (!vendor) throw new AppError(StatusCodes.NOT_FOUND, "Vendor not found");
+  return vendor;
+};
+
 export const UserService = {
   getAllUsers,
   getUserById,
@@ -142,4 +152,6 @@ export const UserService = {
   clearCart,
   updateUserStatus,
   deleteUser,
+  getVendorProfile,
 };
+

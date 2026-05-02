@@ -9,9 +9,10 @@ import { UserRole } from "../user/user.interface";
 const router = Router();
 
 // === Public ==================================================================
-router.get("/",           ProductController.getAllProducts);
-router.get("/slug/:slug", ProductController.getProductBySlug);
-router.get("/:id",        ProductController.getProductById);
+router.get("/",                 ProductController.getAllProducts);
+router.get("/vendor/:vendorId", ProductController.getVendorProducts);
+router.get("/slug/:slug",       ProductController.getProductBySlug);
+router.get("/:id",              ProductController.getProductById);
 
 // === Admin / Agent ===========================================================
 router.post(

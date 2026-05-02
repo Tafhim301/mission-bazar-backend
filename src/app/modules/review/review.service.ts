@@ -5,7 +5,46 @@ import { Order } from "../order/order.model";
 import { OrderStatus } from "../order/order.interface";
 import { IReviewDocument } from "./review.interface";
 import { User } from "../user/user.model";
+import { Product } from "../product/product.model";
 import { QueryBuilder } from "../../utils/queryBuilder";
+
+// Recompute product avgRating + vendor vendorAvgRating after any review mutation
+const recomputeRatings = async (productId: string) => {
+  const stats = await Review.aggregate([
+    { $match: { product: productId } },
+    { $group: { _id: "$product", avg: { $avg: "$rating" }, count: { $sum: 1 } } },
+  ]);
+
+  const avg   = stats[0]?.avg   ?? 0;
+  const count = stats[0]?.count ?? 0;
+
+  await Product.findByIdAndUpdate(productId, {
+    avgRating:    +avg.toFixed(2),
+    totalReviews: count,
+  });
+
+  const product = await Product.findById(productId).select("vendor").lean();
+  if (!product?.vendor) return;
+
+  const vendorStats = await Review.aggregate([
+    {
+      $lookup: {
+        from: "products",
+        localField: "product",
+        foreignField: "_id",
+        as: "prod",
+      },
+    },
+    { $unwind: "$prod" },
+    { $match: { "prod.vendor": product.vendor } },
+    { $group: { _id: null, avg: { $avg: "$rating" }, count: { $sum: 1 } } },
+  ]);
+
+  await User.findByIdAndUpdate(product.vendor, {
+    vendorAvgRating:   +(vendorStats[0]?.avg   ?? 0).toFixed(2),
+    vendorTotalReviews: vendorStats[0]?.count ?? 0,
+  });
+};
 
 const createReview = async (
   userId: string,
@@ -22,11 +61,13 @@ const createReview = async (
   const review = await Review.create({
     ...payload,
     user: userId,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     images: imageFiles.map((f) => (f as any).path),
     isVerifiedPurchase: !!deliveredOrder,
   });
 
   await User.findByIdAndUpdate(userId, { $push: { reviews: review._id } });
+  await recomputeRatings(payload.product);
   return review;
 };
 
@@ -52,6 +93,7 @@ const updateReview = async (
     { new: true, runValidators: true }
   );
   if (!review) throw new AppError(StatusCodes.NOT_FOUND, "Review not found or not yours");
+  await recomputeRatings(String(review.product));
   return review;
 };
 
@@ -73,6 +115,7 @@ const deleteReview = async (reviewId: string, userId: string, role: string): Pro
   const review = await Review.findOneAndDelete(filter);
   if (!review) throw new AppError(StatusCodes.NOT_FOUND, "Review not found or not yours");
   await User.findByIdAndUpdate(review.user, { $pull: { reviews: review._id } });
+  await recomputeRatings(String(review.product));
 };
 
 export const ReviewService = { createReview, getProductReviews, updateReview, replyToReview, deleteReview };

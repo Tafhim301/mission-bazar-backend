@@ -29,7 +29,7 @@ router.get("/:id", checkAuth(), OrderController.getOrderById);
 // === Admin routes ============================================================
 
 // GET /api/v1/order — all orders with filter/sort/paginate
-router.get("/", checkAuth(UserRole.ADMIN), OrderController.getAllOrders);
+router.get("/", checkAuth(UserRole.ADMIN, UserRole.AGENT), OrderController.getAllOrders);
 
 // PATCH /api/v1/order/:id/status — update fulfilment status
 router.patch(

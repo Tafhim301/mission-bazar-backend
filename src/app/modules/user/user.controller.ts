@@ -61,10 +61,17 @@ const deleteUser = catchAsync(async (req: Request, res: Response) => {
   sendResponse(res, { statusCode: StatusCodes.OK, success: true, message: "User deleted", data: null });
 });
 
+
+const getVendorProfile = catchAsync(async (req: Request, res: Response) => {
+  const user = await UserService.getVendorProfile(req.params.vendorId);
+  sendResponse(res, { statusCode: StatusCodes.OK, success: true, message: "Vendor profile retrieved", data: user });
+});
+
 export const UserController = {
   getAllUsers, getMe, getUserById,
   updateProfile, updateAvatar,
   addAddress, removeAddress,
   updateCart, clearCart,
   updateUserStatus, deleteUser,
+  getVendorProfile,
 };
