@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-non-null-assertion */
 import { z } from "zod";
 import { DiscountType, ProductStatus } from "./product.interface";
 

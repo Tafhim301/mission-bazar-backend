@@ -36,6 +36,8 @@
     "typescript-eslint": "^8.38.0"
   },
   "scripts": {
+    "build": "tsc",
+    "start": "node dist/server.js",
     "lint": "npx eslint ./src",
     "dev": "ts-node-dev --respawn --transpile-only ./src/server.ts",
     "test": "echo \"Error: no test specified\" && exit 1"

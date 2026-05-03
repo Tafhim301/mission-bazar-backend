@@ -42,7 +42,7 @@ const productSchema = new Schema<IProductDocument>(
     freeShipping:       { type: Boolean, default: false },
     status:             { type: String, enum: Object.values(ProductStatus), default: ProductStatus.DRAFT },
     isDeleted:          { type: Boolean, default: false },
-    vendor:             { type: Schema.Types.ObjectId, ref: "User", required: true },
+    vendor:             { type: Schema.Types.ObjectId, ref: "User"  },
   },
   {
     timestamps: true, versionKey: false,
