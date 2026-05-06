@@ -12,6 +12,8 @@ import { statsRoutes }           from "../modules/stats/stats.routes";
 import { vendorEarningRoutes }   from "../modules/vendor-earning/vendor-earning.routes";
 import { withdrawRequestRoutes } from "../modules/withdraw-request/withdraw-request.routes";
 import { payoutRoutes }          from "../modules/payout/payout.routes";
+import { vendorRoutes }          from "../modules/vendor/vendor.routes";
+import { vendorDocumentRoutes }  from "../modules/vendor-document/vendor-document.routes";
 
 export const router = Router();
 
@@ -26,6 +28,9 @@ const moduleRoutes = [
   { path: "/carousel", route: carouselRoutes        },
   { path: "/featured", route: featuredRoutes        },
   { path: "/stats",    route: statsRoutes           },
+  // ── Vendor onboarding system ─────────────────────────────────────────────
+  { path: "/vendor",      route: vendorRoutes         },  // POST /vendor/apply, GET /vendor/me, PATCH /vendor/me, POST /vendor/submit, GET|PATCH /vendor/:id
+  { path: "/vendor-docs", route: vendorDocumentRoutes },  // POST /vendor-docs (upload), GET /vendor-docs/my, GET|PATCH /vendor-docs (admin)
   // ── Vendor payout system ──────────────────────────────────────────────────
   { path: "/earnings", route: vendorEarningRoutes   },  // GET /earnings, GET /earnings/my, GET /earnings/my/wallet, POST /earnings/release
   { path: "/withdraw", route: withdrawRequestRoutes },  // POST /withdraw, GET /withdraw/my, GET /withdraw, PATCH /withdraw/:id/approve|reject

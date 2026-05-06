@@ -1,9 +1,10 @@
 import { Document, Types } from "mongoose";
 
 export enum UserRole {
-  USER  = "USER",
-  ADMIN = "ADMIN",
-  AGENT = "AGENT",
+  USER   = "USER",
+  ADMIN  = "ADMIN",
+  AGENT  = "AGENT",
+  VENDOR = "VENDOR",  // approved marketplace seller
 }
 
 export enum UserStatus {

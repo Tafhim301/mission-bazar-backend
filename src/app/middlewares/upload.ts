@@ -73,6 +73,13 @@ export const avatarUpload = multer({
   fileFilter,
 });
 
+/** For vendor KYC / onboarding documents — single file, field name: "file" */
+export const vendorDocUpload = multer({
+  storage: buildStorage("vendor-docs"),
+  limits: { fileSize: MAX_FILE_SIZE },
+  fileFilter,
+});
+
 /** Generic single-image upload (pass folder at call-site via storage override) */
 export const upload = multer({
   storage: multer.memoryStorage(), // fallback when caller handles upload manually
