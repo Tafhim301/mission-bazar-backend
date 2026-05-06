@@ -12,6 +12,7 @@ import { SSLService } from "../sslcommerz/sslcommerz.service";
 import { getTransactionId } from "../../utils/getTransactionId";
 import { QueryBuilder } from "../../utils/queryBuilder";
 import { computeEffectivePrice } from "../product/product.service";
+import { VendorEarningService } from "../vendor-earning/vendor-earning.service";
 
 const SHIPPING_CHARGE = 60; // BDT flat rate
 
@@ -181,6 +182,16 @@ const getOrderById = async (orderId: string, userId: string, role: string): Prom
 const updateOrderStatus = async (orderId: string, status: OrderStatus): Promise<IOrderDocument> => {
   const order = await Order.findByIdAndUpdate(orderId, { $set: { status } }, { new: true, runValidators: true });
   if (!order) throw new AppError(StatusCodes.NOT_FOUND, `Order not found: ${orderId}`);
+
+  // ── Trigger vendor earnings when order is marked DELIVERED ──────────────────
+  if (status === OrderStatus.DELIVERED) {
+    // Fire-and-forget: non-blocking — earnings failure must not break the status update
+    VendorEarningService.createEarningsForOrder(orderId).catch((err) => {
+      // eslint-disable-next-line no-console
+      console.error(`[Earnings] Failed to create earnings for order ${orderId}:`, err);
+    });
+  }
+
   return order;
 };
 

@@ -3,6 +3,7 @@ import { Server } from "http";
 import mongoose from "mongoose";
 import app from "./app";
 import { envVars } from "./app/config/env";
+import { startEarningsCron } from "./app/crons/releaseEarnings";
 
 let server: Server;
 
@@ -10,6 +11,10 @@ const startServer = async () => {
   try {
     await mongoose.connect(envVars.DB_URL);
     console.log("Connected to MongoDB");
+
+    // Start background cron jobs
+    startEarningsCron();
+
     server = app.listen(envVars.PORT, () => {
       console.log(`Server listening on port ${envVars.PORT}`);
     });
