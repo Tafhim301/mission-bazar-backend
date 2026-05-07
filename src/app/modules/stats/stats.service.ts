@@ -21,7 +21,7 @@ const getAdminStats = async () => {
     monthlyRevenue,
   ] = await Promise.all([
     User.countDocuments({ role: UserRole.USER, isDeleted: false }),
-    User.countDocuments({ role: UserRole.AGENT, isDeleted: false }),
+    User.countDocuments({ role: UserRole.VENDOR, isDeleted: false }),
     Product.countDocuments({ isDeleted: false }),
     Order.countDocuments(),
 

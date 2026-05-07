@@ -24,6 +24,8 @@ export interface IVendor {
   type:            VendorType;
   shopName:        string;
   shopDescription?: string;
+  shopBanner?:     string;               // banner image URL
+  shopImage?:      string;               // profile/logo image URL
   address:         string;
   paymentMethod:   VendorPaymentMethod;
   accountNumber:   string;               // bKash number / bank account

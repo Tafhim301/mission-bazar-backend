@@ -1,6 +1,7 @@
 import { model, Schema } from "mongoose";
 import {
   IOrderDocument, IOrderItem, IShippingAddress,
+  IStatusHistoryEntry, ITrackingInfo,
   OrderStatus, PaymentMethod, OrderPaymentStatus,
 } from "./order.interface";
 
@@ -28,6 +29,24 @@ const shippingAddressSchema = new Schema<IShippingAddress>(
   { _id: false }
 );
 
+const statusHistorySchema = new Schema<IStatusHistoryEntry>(
+  {
+    status:    { type: String, enum: Object.values(OrderStatus), required: true },
+    note:      { type: String, trim: true },
+    updatedAt: { type: Date, default: () => new Date() },
+  },
+  { _id: false }
+);
+
+const trackingInfoSchema = new Schema<ITrackingInfo>(
+  {
+    courier:    { type: String, trim: true, required: true },
+    trackingId: { type: String, trim: true, required: true },
+    trackingUrl:{ type: String, trim: true },
+  },
+  { _id: false }
+);
+
 const orderSchema = new Schema<IOrderDocument>(
   {
     user:            { type: Schema.Types.ObjectId, ref: "User", required: true },
@@ -45,6 +64,8 @@ const orderSchema = new Schema<IOrderDocument>(
     invoiceUrl:      { type: String },
     payment:         { type: Schema.Types.ObjectId, ref: "Payment" },
     note:            { type: String, trim: true },
+    statusHistory:   { type: [statusHistorySchema], default: [] },
+    trackingInfo:    { type: trackingInfoSchema },
   },
   { timestamps: true, versionKey: false }
 );

@@ -17,9 +17,15 @@ const applyAsVendor = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
-/** PATCH /api/v1/vendor/me */
+/** PATCH /api/v1/vendor/me — JSON update (DRAFT/REJECTED: all fields; ACTIVE: appearance only) */
 const updateMyProfile = catchAsync(async (req: Request, res: Response) => {
-  const result = await VendorService.updateMyProfile(req.user.userId, req.body);
+  // Merge uploaded file URLs into body if present
+  const files = req.files as Record<string, Express.Multer.File[]> | undefined;
+  const payload = { ...req.body };
+  if (files?.shopBanner?.[0]) payload.shopBanner = files.shopBanner[0].path;
+  if (files?.shopImage?.[0])  payload.shopImage  = files.shopImage[0].path;
+
+  const result = await VendorService.updateMyProfile(req.user.userId, payload);
   sendResponse(res, {
     statusCode: StatusCodes.OK,
     success:    true,
@@ -46,6 +52,31 @@ const getMyVendorProfile = catchAsync(async (req: Request, res: Response) => {
     statusCode: StatusCodes.OK,
     success:    true,
     message:    "Vendor profile retrieved",
+    data:       result,
+  });
+});
+
+// ── Public-facing ─────────────────────────────────────────────────────────────
+
+/** GET /api/v1/vendor/active — paginated active vendors (for homepage) */
+const getActiveVendors = catchAsync(async (req: Request, res: Response) => {
+  const result = await VendorService.getActiveVendors(req.query as Record<string, string>);
+  sendResponse(res, {
+    statusCode: StatusCodes.OK,
+    success:    true,
+    message:    "Active vendors retrieved",
+    data:       result.vendors,
+    meta:       result.meta,
+  });
+});
+
+/** GET /api/v1/vendor/public/:userId — public shop profile (by user._id) */
+const getPublicVendorProfile = catchAsync(async (req: Request, res: Response) => {
+  const result = await VendorService.getPublicVendorProfile(req.params.userId);
+  sendResponse(res, {
+    statusCode: StatusCodes.OK,
+    success:    true,
+    message:    "Vendor shop retrieved",
     data:       result,
   });
 });
@@ -106,6 +137,8 @@ export const VendorController = {
   updateMyProfile,
   submitForReview,
   getMyVendorProfile,
+  getActiveVendors,
+  getPublicVendorProfile,
   getAllVendors,
   getVendorById,
   activateVendor,

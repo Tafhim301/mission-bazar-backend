@@ -29,4 +29,14 @@ const deleteReview = catchAsync(async (req: Request, res: Response) => {
   sendResponse(res, { statusCode: StatusCodes.OK, success: true, message: "Review deleted", data: null });
 });
 
-export const ReviewController = { createReview, getProductReviews, updateReview, replyToReview, deleteReview };
+const getVendorReviews = catchAsync(async (req: Request, res: Response) => {
+  const { reviews, meta } = await ReviewService.getVendorReviews(req.user!.userId, req.query as Record<string, string>);
+  sendResponse(res, { statusCode: StatusCodes.OK, success: true, message: "Reviews retrieved", data: reviews, meta });
+});
+
+const getAllReviews = catchAsync(async (req: Request, res: Response) => {
+  const { reviews, meta } = await ReviewService.getAllReviews(req.query as Record<string, string>);
+  sendResponse(res, { statusCode: StatusCodes.OK, success: true, message: "Reviews retrieved", data: reviews, meta });
+});
+
+export const ReviewController = { createReview, getProductReviews, updateReview, replyToReview, deleteReview, getVendorReviews, getAllReviews };

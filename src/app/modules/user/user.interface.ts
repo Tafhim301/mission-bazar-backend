@@ -26,15 +26,17 @@ export enum AddressLabel {
 }
 
 export interface IAddress {
-  label: AddressLabel;
-  contactName: string;
+  label:        AddressLabel;
+  contactName:  string;
   contactPhone: string;
-  street: string;
-  landmark?: string;
-  district: string;
-  zone: string;
-  area: string;
-  isDefault: boolean;
+  division:     string;   // BD administrative division (Dhaka, Chittagong, …)
+  district:     string;   // BD district
+  upazila:      string;   // BD upazila / thana
+  area?:        string;   // specific neighbourhood / union / para
+  street:       string;   // house #, flat, road
+  landmark?:    string;
+  zone?:        string;   // legacy — kept for backward compat, not used in new UI
+  isDefault:    boolean;
 }
 
 export interface ICartItem {

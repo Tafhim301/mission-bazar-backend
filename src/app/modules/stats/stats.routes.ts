@@ -6,6 +6,6 @@ import { UserRole } from "../user/user.interface";
 const router = Router();
 
 router.get("/admin", checkAuth(UserRole.ADMIN), StatsController.getAdminStats);
-router.get("/vendor", checkAuth(UserRole.AGENT), StatsController.getVendorStats);
+router.get("/vendor", checkAuth(UserRole.VENDOR), StatsController.getVendorStats);
 
 export const statsRoutes = router;

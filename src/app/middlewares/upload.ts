@@ -80,6 +80,13 @@ export const vendorDocUpload = multer({
   fileFilter,
 });
 
+/** For vendor shop banner + shop image — two optional files */
+export const vendorShopUpload = multer({
+  storage: buildStorage("vendor-shops"),
+  limits: { fileSize: MAX_FILE_SIZE },
+  fileFilter,
+});
+
 /** Generic single-image upload (pass folder at call-site via storage override) */
 export const upload = multer({
   storage: multer.memoryStorage(), // fallback when caller handles upload manually

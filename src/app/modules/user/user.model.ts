@@ -11,11 +11,13 @@ const addressSchema = new Schema<IAddress>(
     label:        { type: String, enum: Object.values(AddressLabel), default: AddressLabel.HOME },
     contactName:  { type: String, required: true, trim: true },
     contactPhone: { type: String, required: true, trim: true },
+    division:     { type: String, required: true, trim: true },   // BD division (analytics key)
+    district:     { type: String, required: true, trim: true },
+    upazila:      { type: String, required: true, trim: true },
+    area:         { type: String, trim: true },                   // optional neighbourhood
     street:       { type: String, required: true, trim: true },
     landmark:     { type: String, trim: true },
-    district:     { type: String, required: true, trim: true },
-    zone:         { type: String, required: true, trim: true },
-    area:         { type: String, required: true, trim: true },
+    zone:         { type: String, trim: true },                   // legacy field
     isDefault:    { type: Boolean, default: false },
   },
   { _id: true }

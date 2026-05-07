@@ -20,6 +20,7 @@ const SHIPPING_CHARGE = 60; // BDT flat rate
 
 const createOrder = async (
   userId: string,
+  userRole: string,
   payload: {
     items: { product: string; quantity: number; quantityNote?: string }[];
     shippingAddress: { fullName: string; phone: string; address: string; city: string; postalCode: string };
@@ -36,6 +37,8 @@ const createOrder = async (
       payload.items.map(async ({ product: productId, quantity, quantityNote }) => {
         const product = await Product.findById(productId).session(session);
         if (!product) throw new AppError(StatusCodes.NOT_FOUND, `Product not found: ${productId}`);
+        if (userRole !== "ADMIN" && String(product.vendor) === userId)
+          throw new AppError(StatusCodes.FORBIDDEN, `You cannot purchase your own product: "${product.name}"`);
         if (product.status !== ProductStatus.ACTIVE)
           throw new AppError(StatusCodes.BAD_REQUEST, `"${product.name}" is not available`);
         if (product.stock < quantity)
@@ -74,6 +77,7 @@ const createOrder = async (
     const transactionId = getTransactionId();
 
     // 4. Create Order
+    const initialStatus = payload.paymentMethod === PaymentMethod.COD ? OrderStatus.PROCESSING : OrderStatus.PENDING;
     const [order] = await Order.create(
       [{
         user: userId,
@@ -86,8 +90,14 @@ const createOrder = async (
         paymentStatus: OrderPaymentStatus.PENDING,
         transactionId,
         note: payload.note,
-        // COD orders go straight to PROCESSING
-        status: payload.paymentMethod === PaymentMethod.COD ? OrderStatus.PROCESSING : OrderStatus.PENDING,
+        status: initialStatus,
+        statusHistory: [{
+          status:    initialStatus,
+          note:      initialStatus === OrderStatus.PROCESSING
+            ? "Order placed and confirmed (Cash on Delivery)"
+            : "Order placed successfully",
+          updatedAt: new Date(),
+        }],
       }],
       { session }
     );
@@ -179,8 +189,44 @@ const getOrderById = async (orderId: string, userId: string, role: string): Prom
 
 // === Update Order Status (Admin) ==============================================
 
-const updateOrderStatus = async (orderId: string, status: OrderStatus): Promise<IOrderDocument> => {
-  const order = await Order.findByIdAndUpdate(orderId, { $set: { status } }, { new: true, runValidators: true });
+const DEFAULT_STATUS_NOTES: Record<OrderStatus, string> = {
+  [OrderStatus.PENDING]:    "Order placed successfully",
+  [OrderStatus.PROCESSING]: "Order confirmed and being prepared by the seller",
+  [OrderStatus.SHIPPED]:    "Order has been handed to the courier for delivery",
+  [OrderStatus.DELIVERED]:  "Order delivered successfully",
+  [OrderStatus.CANCELLED]:  "Order has been cancelled",
+  [OrderStatus.FAILED]:     "Order failed",
+};
+
+const updateOrderStatus = async (
+  orderId: string,
+  status: OrderStatus,
+  options?: {
+    note?: string;
+    trackingInfo?: { courier: string; trackingId: string; trackingUrl?: string };
+  }
+): Promise<IOrderDocument> => {
+  const updateFields: Record<string, unknown> = { status };
+
+  // Persist tracking info when status moves to SHIPPED
+  if (options?.trackingInfo) {
+    updateFields["trackingInfo"] = options.trackingInfo;
+  }
+
+  const historyEntry = {
+    status,
+    note: options?.note || DEFAULT_STATUS_NOTES[status],
+    updatedAt: new Date(),
+  };
+
+  const order = await Order.findByIdAndUpdate(
+    orderId,
+    {
+      $set: updateFields,
+      $push: { statusHistory: historyEntry },
+    },
+    { new: true, runValidators: true }
+  );
   if (!order) throw new AppError(StatusCodes.NOT_FOUND, `Order not found: ${orderId}`);
 
   // ── Trigger vendor earnings when order is marked DELIVERED ──────────────────
@@ -225,6 +271,38 @@ const cancelOrder = async (orderId: string, userId: string): Promise<void> => {
   }
 };
 
+// === Get Vendor Orders (orders containing vendor's products) ==================
+
+const getVendorOrders = async (vendorId: string, query: Record<string, string>) => {
+  const vendorProductDocs = await Product.find({ vendor: vendorId, isDeleted: false })
+    .select("_id")
+    .lean();
+  const pids = vendorProductDocs.map((p) => p._id);
+
+  const filter: Record<string, unknown> = { "items.product": { $in: pids } };
+  if (query.status) filter.status = query.status;
+
+  const pageNum   = Math.max(1, parseInt(query.page  ?? "1"));
+  const limitNum  = Math.min(100, Math.max(1, parseInt(query.limit ?? "20")));
+  const skip      = (pageNum - 1) * limitNum;
+
+  const [orders, total] = await Promise.all([
+    Order.find(filter)
+      .populate("user", "name email phone")
+      .populate("items.product", "name images vendor singleItemPrice")
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limitNum)
+      .lean(),
+    Order.countDocuments(filter),
+  ]);
+
+  return {
+    orders,
+    meta: { total, page: pageNum, limit: limitNum, totalPages: Math.ceil(total / limitNum) },
+  };
+};
+
 export const OrderService = {
-  createOrder, getMyOrders, getAllOrders, getOrderById, updateOrderStatus, cancelOrder,
+  createOrder, getMyOrders, getAllOrders, getOrderById, updateOrderStatus, cancelOrder, getVendorOrders,
 };

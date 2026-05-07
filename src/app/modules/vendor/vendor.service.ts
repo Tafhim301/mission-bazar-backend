@@ -23,19 +23,33 @@ const applyAsVendor = async (userId: string, payload: Partial<IVendor>) => {
   return Vendor.create({ user: userId, ...payload });
 };
 
-// ── Update vendor's own profile (only when DRAFT or REJECTED) ─────────────────
+// ── Update vendor's own profile ───────────────────────────────────────────────
+// DRAFT / REJECTED → all fields editable
+// ACTIVE           → only shopName, shopDescription, shopBanner, shopImage
+// REVIEW           → no edits allowed
 
 const updateMyProfile = async (userId: string, payload: Partial<IVendor>) => {
   const vendor = await Vendor.findOne({ user: userId });
   if (!vendor) throw new AppError(StatusCodes.NOT_FOUND, "Vendor profile not found");
 
-  if (![VendorStatus.DRAFT, VendorStatus.REJECTED].includes(vendor.status)) {
+  if (vendor.status === VendorStatus.REVIEW) {
     throw new AppError(
       StatusCodes.BAD_REQUEST,
-      `Profile cannot be edited while it is ${vendor.status}. Contact support if needed.`
+      "Profile cannot be edited while it is under review."
     );
   }
 
+  // ACTIVE vendors can only update appearance fields
+  if (vendor.status === VendorStatus.ACTIVE) {
+    const allowed: Partial<IVendor> = {};
+    if (payload.shopName        !== undefined) allowed.shopName        = payload.shopName;
+    if (payload.shopDescription !== undefined) allowed.shopDescription = payload.shopDescription;
+    if (payload.shopBanner      !== undefined) allowed.shopBanner      = payload.shopBanner;
+    if (payload.shopImage       !== undefined) allowed.shopImage       = payload.shopImage;
+    return Vendor.findByIdAndUpdate(vendor._id, allowed, { new: true, runValidators: true });
+  }
+
+  // DRAFT / REJECTED — full edit
   return Vendor.findByIdAndUpdate(vendor._id, payload, { new: true, runValidators: true });
 };
 
@@ -80,6 +94,29 @@ const getMyVendorProfile = async (userId: string) => {
   const vendor = await Vendor.findOne({ user: userId }).populate("user", "name email phone");
   if (!vendor) throw new AppError(StatusCodes.NOT_FOUND, "Vendor profile not found");
   return vendor;
+};
+
+// ── Public: get single vendor's shop page data (by user ID) ─────────────────
+
+const getPublicVendorProfile = async (userId: string) => {
+  const vendor = await Vendor.findOne({ user: userId, status: VendorStatus.ACTIVE })
+    .populate("user", "name profileImage email vendorAvgRating vendorTotalReviews createdAt");
+  if (!vendor) throw new AppError(StatusCodes.NOT_FOUND, "Vendor shop not found");
+  return vendor;
+};
+
+// ── Public: list active vendors (for homepage cards) ─────────────────────────
+
+const getActiveVendors = async (query: Record<string, string>) => {
+  const q = new QueryBuilder(
+    Vendor.find({ status: VendorStatus.ACTIVE })
+      .populate("user", "name profileImage vendorAvgRating vendorTotalReviews"),
+    query
+  ).sort().paginate();
+
+  const vendors = await q.build();
+  const meta    = await q.getMeta();
+  return { vendors, meta };
 };
 
 // ── Admin: get all vendors ────────────────────────────────────────────────────
@@ -158,6 +195,8 @@ export const VendorService = {
   updateMyProfile,
   submitForReview,
   getMyVendorProfile,
+  getPublicVendorProfile,
+  getActiveVendors,
   getAllVendors,
   getVendorById,
   activateVendor,

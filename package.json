@@ -19,7 +19,7 @@
     "pdfkit": "^0.18.0",
     "zod": "^4.0.11"
   },
-  "name": "digital-wallet-backend",
+  "name": "mission-bazar-backend",
   "version": "1.0.0",
   "main": "index.js",
   "devDependencies": {

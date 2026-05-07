@@ -35,6 +35,11 @@ const addAddress = catchAsync(async (req: Request, res: Response) => {
   sendResponse(res, { statusCode: StatusCodes.OK, success: true, message: "Address added", data: user });
 });
 
+const updateAddress = catchAsync(async (req: Request, res: Response) => {
+  const user = await UserService.updateAddress(req.user!.userId, req.params.addressId, req.body);
+  sendResponse(res, { statusCode: StatusCodes.OK, success: true, message: "Address updated", data: user });
+});
+
 const removeAddress = catchAsync(async (req: Request, res: Response) => {
   const user = await UserService.removeAddress(req.user!.userId, req.params.addressId);
   sendResponse(res, { statusCode: StatusCodes.OK, success: true, message: "Address removed", data: user });
@@ -42,7 +47,7 @@ const removeAddress = catchAsync(async (req: Request, res: Response) => {
 
 const updateCart = catchAsync(async (req: Request, res: Response) => {
   const { product, quantity } = req.body;
-  const user = await UserService.updateCart(req.user!.userId, product, quantity);
+  const user = await UserService.updateCart(req.user!.userId, req.user!.role, product, quantity);
   sendResponse(res, { statusCode: StatusCodes.OK, success: true, message: "Cart updated", data: user });
 });
 
@@ -70,7 +75,7 @@ const getVendorProfile = catchAsync(async (req: Request, res: Response) => {
 export const UserController = {
   getAllUsers, getMe, getUserById,
   updateProfile, updateAvatar,
-  addAddress, removeAddress,
+  addAddress, updateAddress, removeAddress,
   updateCart, clearCart,
   updateUserStatus, deleteUser,
   getVendorProfile,

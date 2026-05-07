@@ -118,4 +118,65 @@ const deleteReview = async (reviewId: string, userId: string, role: string): Pro
   await recomputeRatings(String(review.product));
 };
 
-export const ReviewService = { createReview, getProductReviews, updateReview, replyToReview, deleteReview };
+// === Get Vendor Reviews (reviews on vendor's products) =======================
+
+const getVendorReviews = async (vendorId: string, query: Record<string, string>) => {
+  const vendorProductDocs = await Product.find({ vendor: vendorId, isDeleted: false })
+    .select("_id")
+    .lean();
+  const pids = vendorProductDocs.map((p) => p._id);
+
+  const filter: Record<string, unknown> = { product: { $in: pids } };
+  if (query.rating)  filter.rating  = Number(query.rating);
+  if (query.product) filter.product = query.product;
+
+  const pageNum  = Math.max(1, parseInt(query.page  ?? "1"));
+  const limitNum = Math.min(100, Math.max(1, parseInt(query.limit ?? "20")));
+  const skip     = (pageNum - 1) * limitNum;
+
+  const [reviews, total] = await Promise.all([
+    Review.find(filter)
+      .populate("user",    "name profileImage")
+      .populate("product", "name images")
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limitNum)
+      .lean(),
+    Review.countDocuments(filter),
+  ]);
+
+  return {
+    reviews,
+    meta: { total, page: pageNum, limit: limitNum, totalPages: Math.ceil(total / limitNum) },
+  };
+};
+
+// === Get All Reviews (admin) =================================================
+
+const getAllReviews = async (query: Record<string, string>) => {
+  const filter: Record<string, unknown> = {};
+  if (query.rating)  filter.rating  = Number(query.rating);
+  if (query.product) filter.product = query.product;
+
+  const pageNum  = Math.max(1, parseInt(query.page  ?? "1"));
+  const limitNum = Math.min(100, Math.max(1, parseInt(query.limit ?? "20")));
+  const skip     = (pageNum - 1) * limitNum;
+
+  const [reviews, total] = await Promise.all([
+    Review.find(filter)
+      .populate("user",    "name profileImage email")
+      .populate("product", "name images")
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limitNum)
+      .lean(),
+    Review.countDocuments(filter),
+  ]);
+
+  return {
+    reviews,
+    meta: { total, page: pageNum, limit: limitNum, totalPages: Math.ceil(total / limitNum) },
+  };
+};
+
+export const ReviewService = { createReview, getProductReviews, updateReview, replyToReview, deleteReview, getVendorReviews, getAllReviews };

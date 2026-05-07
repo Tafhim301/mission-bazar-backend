@@ -13,7 +13,7 @@ const router = Router();
  *   - file: the image file
  *   - type: DocumentType enum value (e.g. "NID_FRONT")
  */
-router.post("/",    checkAuth(), vendorDocUpload.single("file"), VendorDocumentController.uploadDocument);
+router.post("/",    checkAuth(UserRole.USER), vendorDocUpload.single("file"), VendorDocumentController.uploadDocument);
 router.get( "/my",  checkAuth(), VendorDocumentController.getMyDocuments);
 
 // ── Admin routes ──────────────────────────────────────────────────────────────

@@ -8,6 +8,7 @@ import { OrderStatus } from "./order.interface";
 const createOrder = catchAsync(async (req: Request, res: Response) => {
   const { order, paymentUrl } = await OrderService.createOrder(
     req.user!.userId,
+    req.user!.role,
     req.body
   );
   sendResponse(res, {
@@ -43,8 +44,12 @@ const getOrderById = catchAsync(async (req: Request, res: Response) => {
 });
 
 const updateOrderStatus = catchAsync(async (req: Request, res: Response) => {
-  const { status } = req.body as { status: OrderStatus };
-  const order = await OrderService.updateOrderStatus(req.params.id, status);
+  const { status, note, trackingInfo } = req.body as {
+    status: OrderStatus;
+    note?: string;
+    trackingInfo?: { courier: string; trackingId: string; trackingUrl?: string };
+  };
+  const order = await OrderService.updateOrderStatus(req.params.id, status, { note, trackingInfo });
   sendResponse(res, { statusCode: StatusCodes.OK, success: true, message: `Order status updated to ${status}`, data: order });
 });
 
@@ -53,7 +58,15 @@ const cancelOrder = catchAsync(async (req: Request, res: Response) => {
   sendResponse(res, { statusCode: StatusCodes.OK, success: true, message: "Order cancelled successfully", data: null });
 });
 
+const getVendorOrders = catchAsync(async (req: Request, res: Response) => {
+  const { orders, meta } = await OrderService.getVendorOrders(
+    req.user!.userId,
+    req.query as Record<string, string>
+  );
+  sendResponse(res, { statusCode: StatusCodes.OK, success: true, message: "Vendor orders retrieved", data: orders, meta });
+});
+
 export const OrderController = {
   createOrder, getMyOrders, getAllOrders,
-  getOrderById, updateOrderStatus, cancelOrder,
+  getOrderById, updateOrderStatus, cancelOrder, getVendorOrders,
 };

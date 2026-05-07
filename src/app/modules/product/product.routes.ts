@@ -14,10 +14,10 @@ router.get("/vendor/:vendorId", ProductController.getVendorProducts);
 router.get("/slug/:slug",       ProductController.getProductBySlug);
 router.get("/:id",              ProductController.getProductById);
 
-// === Admin / Agent ===========================================================
+// === Admin / Vendor ===========================================================
 router.post(
   "/",
-  checkAuth(UserRole.ADMIN, UserRole.AGENT),
+  checkAuth(UserRole.ADMIN, UserRole.VENDOR),
   productUpload.array("images", 8),
   validateRequest(ProductValidation.createProductSchema, { parseData: true }),
   ProductController.createProduct
@@ -25,7 +25,7 @@ router.post(
 
 router.patch(
   "/:id",
-  checkAuth(UserRole.ADMIN, UserRole.AGENT),
+  checkAuth(UserRole.ADMIN, UserRole.VENDOR),
   productUpload.array("images", 8),
   validateRequest(ProductValidation.updateProductSchema, { parseData: true }),
   ProductController.updateProduct
@@ -40,7 +40,7 @@ router.patch(
 
 router.delete(
   "/:id",
-  checkAuth(UserRole.ADMIN, UserRole.AGENT),
+  checkAuth(UserRole.ADMIN, UserRole.VENDOR),
   ProductController.deleteProduct
 );
 

@@ -14,8 +14,9 @@ router.patch("/me",        checkAuth(), validateRequest(UserValidation.updatePro
 router.patch("/me/avatar", checkAuth(), avatarUpload.single("avatar"), UserController.updateAvatar);
 
 // === Address =================================================================
-router.post("/me/address",              checkAuth(), validateRequest(UserValidation.addAddressSchema), UserController.addAddress);
-router.delete("/me/address/:addressId", checkAuth(), UserController.removeAddress);
+router.post("/me/address",                  checkAuth(), validateRequest(UserValidation.addAddressSchema), UserController.addAddress);
+router.patch("/me/address/:addressId",      checkAuth(), validateRequest(UserValidation.addAddressSchema), UserController.updateAddress);
+router.delete("/me/address/:addressId",     checkAuth(), UserController.removeAddress);
 
 // === Cart ====================================================================
 router.patch("/me/cart",  checkAuth(), validateRequest(UserValidation.updateCartSchema), UserController.updateCart);

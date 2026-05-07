@@ -12,11 +12,13 @@ const addAddressSchema = z.object({
   label:        z.enum([AddressLabel.HOME, AddressLabel.OFFICE, AddressLabel.OTHERS]).optional(),
   contactName:  z.string({ error: "Contact name is required" }).trim().min(2).max(100),
   contactPhone: z.string({ error: "Contact phone is required" }).trim().regex(/^\+?8801[3-9]\d{8}$|^\+?[0-9]{7,15}$/, "Invalid phone number"),
-  street:       z.string({ error: "Street address is required" }).trim().min(3),
-  landmark:     z.string().trim().optional(),
+  division:     z.string({ error: "Division is required" }).trim().min(2),
   district:     z.string({ error: "District is required" }).trim().min(2),
-  zone:         z.string({ error: "Zone is required" }).trim().min(2),
-  area:         z.string({ error: "Area is required" }).trim().min(2),
+  upazila:      z.string({ error: "Upazila is required" }).trim().min(2),
+  area:         z.string().trim().optional(),
+  street:       z.string({ error: "Street / house address is required" }).trim().min(3),
+  landmark:     z.string().trim().optional(),
+  zone:         z.string().trim().optional(),   // legacy, not required
   isDefault:    z.boolean().optional().default(false),
 });
 

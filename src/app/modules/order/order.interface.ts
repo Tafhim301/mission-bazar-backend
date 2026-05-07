@@ -38,6 +38,20 @@ export interface IShippingAddress {
   postalCode: string;
 }
 
+/** One entry in the status timeline — appended on every status change */
+export interface IStatusHistoryEntry {
+  status:    OrderStatus;
+  note?:     string;      // admin note or default message
+  updatedAt: Date;
+}
+
+/** Manual courier tracking info entered by admin when shipping */
+export interface ITrackingInfo {
+  courier:      string;    // e.g. "RedX", "Pathao", "Steadfast"
+  trackingId:   string;    // consignment / tracking number
+  trackingUrl?: string;    // optional direct link
+}
+
 export interface IOrder {
   user: Types.ObjectId;
   items: IOrderItem[];
@@ -55,6 +69,8 @@ export interface IOrder {
   invoiceUrl?: string;
   payment?: Types.ObjectId;   // ref: Payment (SSLCommerz only)
   note?: string;
+  statusHistory: IStatusHistoryEntry[];
+  trackingInfo?: ITrackingInfo;
 }
 
 export interface IOrderDocument extends IOrder, Document {

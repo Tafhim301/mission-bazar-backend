@@ -10,10 +10,12 @@ import { UserRole } from "../user/user.interface";
 const router = Router();
 
 router.get("/product/:productId", ReviewController.getProductReviews);
+router.get("/vendor", checkAuth(UserRole.VENDOR), ReviewController.getVendorReviews);
+router.get("/",       checkAuth(UserRole.ADMIN),  ReviewController.getAllReviews);
 
 router.post("/",       checkAuth(), productUpload.array("images", 4), validateRequest(ReviewValidation.createReviewSchema, { parseData: true }), ReviewController.createReview);
 router.patch("/:id",   checkAuth(), validateRequest(ReviewValidation.updateReviewSchema), ReviewController.updateReview);
-router.patch("/:id/reply", checkAuth(UserRole.ADMIN, UserRole.AGENT), validateRequest(z.object({ comment: z.string().trim().min(1) })), ReviewController.replyToReview);
+router.patch("/:id/reply", checkAuth(UserRole.ADMIN, UserRole.VENDOR), validateRequest(z.object({ comment: z.string().trim().min(1) })), ReviewController.replyToReview);
 router.delete("/:id",  checkAuth(), ReviewController.deleteReview);
 
 export const reviewRoutes = router;

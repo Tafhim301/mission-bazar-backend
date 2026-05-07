@@ -12,13 +12,16 @@ const router = Router();
 // POST /api/v1/order — place a new order (creates payment record & returns SSLCommerz URL)
 router.post(
   "/",
-  checkAuth(UserRole.USER, UserRole.ADMIN),
+  checkAuth(UserRole.USER, UserRole.VENDOR, UserRole.ADMIN),
   validateRequest(OrderValidation.createOrderSchema),
   OrderController.createOrder
 );
 
 // GET /api/v1/order/my-orders — authenticated user's own orders
 router.get("/my-orders", checkAuth(), OrderController.getMyOrders);
+
+// GET /api/v1/order/vendor-orders — orders containing the authenticated vendor's products
+router.get("/vendor-orders", checkAuth(UserRole.VENDOR), OrderController.getVendorOrders);
 
 // PATCH /api/v1/order/:id/cancel — user cancels a PENDING order
 router.patch("/:id/cancel", checkAuth(), OrderController.cancelOrder);
@@ -29,7 +32,7 @@ router.get("/:id", checkAuth(), OrderController.getOrderById);
 // === Admin routes ============================================================
 
 // GET /api/v1/order — all orders with filter/sort/paginate
-router.get("/", checkAuth(UserRole.ADMIN, UserRole.AGENT), OrderController.getAllOrders);
+router.get("/", checkAuth(UserRole.ADMIN), OrderController.getAllOrders);
 
 // PATCH /api/v1/order/:id/status — update fulfilment status
 router.patch(
