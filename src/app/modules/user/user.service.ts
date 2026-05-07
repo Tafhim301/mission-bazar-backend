@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { StatusCodes } from "http-status-codes";
 import AppError from "../../errorHandlers/appError";
 import { User } from "./user.model";
@@ -85,7 +86,7 @@ const updateAddress = async (userId: string, addressId: string, payload: object)
   const user = await User.findById(userId);
   if (!user) throw new AppError(StatusCodes.NOT_FOUND, "User not found");
 
-  const addr = user.address.id(addressId);
+  const addr = user.address.find((a: any) => String(a._id) === addressId);
   if (!addr) throw new AppError(StatusCodes.NOT_FOUND, "Address not found");
 
   // If marking as default, unset all others first

@@ -4,7 +4,7 @@ export enum UserRole {
   USER   = "USER",
   ADMIN  = "ADMIN",
   AGENT  = "AGENT",
-  VENDOR = "VENDOR",  // approved marketplace seller
+  VENDOR = "VENDOR",  
 }
 
 export enum UserStatus {
@@ -26,6 +26,7 @@ export enum AddressLabel {
 }
 
 export interface IAddress {
+  _id :         string;
   label:        AddressLabel;
   contactName:  string;
   contactPhone: string;
