@@ -28,6 +28,16 @@ const createOrder = async (
     note?: string;
   }
 ): Promise<{ order: IOrderDocument; paymentUrl?: string }> => {
+  // ── Gateway guard: SSLCommerz approval pending ─────────────────────────────
+  // Remove this block once the gateway is live and validation is updated.
+  if (payload.paymentMethod === PaymentMethod.SSLCOMMERZ) {
+    throw new AppError(
+      StatusCodes.PAYMENT_REQUIRED,
+      "Online payment is not available yet. Please select Cash on Delivery.",
+    );
+  }
+  // ── End gateway guard ───────────────────────────────────────────────────────
+
   const session = await mongoose.startSession();
   session.startTransaction();
 
@@ -107,7 +117,7 @@ const createOrder = async (
 
     let paymentUrl: string | undefined;
 
-    if (payload.paymentMethod === PaymentMethod.SSLCOMMERZ) {
+    if (payload.paymentMethod === PaymentMethod.SSLCOMMERZ as PaymentMethod) {
       // 6a. Create Payment record
       const [payment] = await Payment.create(
         [{ order: order._id, transactionId, amount: totalAmount, status: PaymentStatus.UNPAID }],

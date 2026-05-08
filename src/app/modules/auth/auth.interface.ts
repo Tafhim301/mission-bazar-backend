@@ -25,6 +25,17 @@ export interface IResetPasswordPayload {
   newPassword: string;
 }
 
+export interface IVerifyPasswordOtpPayload {
+  email: string;
+  otp: string;
+}
+
+export interface ISetNewPasswordPayload {
+  email: string;
+  resetToken: string;
+  newPassword: string;
+}
+
 export interface IChangePasswordPayload {
   currentPassword: string;
   newPassword: string;

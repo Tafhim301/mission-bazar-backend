@@ -5,10 +5,10 @@ const { phoneSchema, passwordSchema } = UserValidation;
 
 const registerSchema = z
   .object({
-    name:            z.string({ error: "Name is required" }).trim().min(2).max(60),
-    email:           z.string({ error: "Email is required" }).trim().toLowerCase().email("Invalid email"),
-    phone:           phoneSchema.optional(),
-    password:        passwordSchema,
+    name: z.string({ error: "Name is required" }).trim().min(2).max(60),
+    email: z.string({ error: "Email is required" }).trim().toLowerCase().email("Invalid email"),
+    phone: phoneSchema.optional(),
+    password: passwordSchema,
     confirmPassword: z.string({ error: "Please confirm your password" }),
   })
   .refine((d) => d.password === d.confirmPassword, {
@@ -17,11 +17,11 @@ const registerSchema = z
 
 const verifyEmailSchema = z.object({
   email: z.string().trim().toLowerCase().email("Invalid email"),
-  otp:   z.string({ error: "OTP is required" }).length(6, "OTP must be 6 digits").regex(/^\d+$/, "OTP must be numeric"),
+  otp: z.string({ error: "OTP is required" }).length(6, "OTP must be 6 digits").regex(/^\d+$/, "OTP must be numeric"),
 });
 
 const loginSchema = z.object({
-  email:    z.string({ error: "Email is required" }).trim().toLowerCase().email("Invalid email"),
+  email: z.string({ error: "Email is required" }).trim().toLowerCase().email("Invalid email"),
   password: z.string({ error: "Password is required" }).min(1),
 });
 
@@ -31,10 +31,24 @@ const forgotPasswordSchema = z.object({
 
 const resetPasswordSchema = z
   .object({
-    email:           z.string().trim().toLowerCase().email(),
-    otp:             z.string().length(6).regex(/^\d+$/),
-    newPassword:     passwordSchema,
+    email: z.string().trim().toLowerCase().email(),
+    otp: z.string().length(6).regex(/^\d+$/),
+    newPassword: passwordSchema,
     confirmPassword: z.string(),
+  })
+  .refine((d) => d.newPassword === d.confirmPassword, {
+    message: "Passwords do not match", path: ["confirmPassword"],
+  });
+
+const verifyPasswordOtpSchema = z.object({
+  email: z.string({ error: "Email is required" }).trim().toLowerCase().email("Invalid email"),
+  otp: z.string({ error: "OTP is required" }).length(6, "OTP must be 6 digits").regex(/^\d+$/, "OTP must be numeric"),
+});
+
+const setNewPasswordSchema = z
+  .object({
+    email: z.string({ error: "Email is required" }).trim().toLowerCase().email("Invalid email"), resetToken: z.string({ error: "Reset token is required" }).min(1, "Reset token is required"), newPassword: passwordSchema,
+    confirmPassword: z.string({ error: "Please confirm your password" }),
   })
   .refine((d) => d.newPassword === d.confirmPassword, {
     message: "Passwords do not match", path: ["confirmPassword"],
@@ -42,8 +56,8 @@ const resetPasswordSchema = z
 
 const changePasswordSchema = z
   .object({
-    currentPassword:  z.string({ error: "Current password is required" }).min(1),
-    newPassword:      passwordSchema,
+    currentPassword: z.string({ error: "Current password is required" }).min(1),
+    newPassword: passwordSchema,
     confirmNewPassword: z.string(),
   })
   .refine((d) => d.newPassword === d.confirmNewPassword, {
@@ -55,5 +69,5 @@ const changePasswordSchema = z
 
 export const AuthValidation = {
   registerSchema, verifyEmailSchema, loginSchema,
-  forgotPasswordSchema, resetPasswordSchema, changePasswordSchema,
+  forgotPasswordSchema, resetPasswordSchema, verifyPasswordOtpSchema, setNewPasswordSchema, changePasswordSchema,
 };

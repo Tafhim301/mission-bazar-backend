@@ -1,7 +1,7 @@
 import { JwtPayload } from "jsonwebtoken";
 import { StatusCodes } from "http-status-codes";
 import AppError from "../../errorHandlers/appError";
-import { verifyToken } from "../../utils/jwt";
+import { verifyToken, generateToken } from "../../utils/jwt";
 import { envVars } from "../../config/env";
 import { User } from "../user/user.model";
 import { IUserDocument } from "../user/user.interface";
@@ -11,6 +11,7 @@ import { Otp, OtpType } from "../otp/otp.model";
 import {
   IAuthTokens, IChangePasswordPayload, IForgotPasswordPayload,
   ILoginPayload, IRegisterPayload, IResetPasswordPayload, IVerifyEmailPayload,
+  IVerifyPasswordOtpPayload, ISetNewPasswordPayload,
 } from "./auth.interface";
 
 // === Register (step 1) — create unverified account + send OTP ================
@@ -38,10 +39,10 @@ const register = async (payload: IRegisterPayload): Promise<{ message: string }>
   }
 
   await User.create({
-    name:       payload.name,
-    email:      payload.email,
-    phone:      payload.phone,
-    password:   payload.password,
+    name: payload.name,
+    email: payload.email,
+    phone: payload.phone,
+    password: payload.password,
     isVerified: false,
   });
 
@@ -125,7 +126,57 @@ const forgotPassword = async (payload: IForgotPasswordPayload): Promise<{ messag
   return { message: "If this email is registered, you will receive a password reset OTP." };
 };
 
-// === Reset Password (step 2) — verify OTP + set new password =================
+// === Reset Password (step 2a) — verify OTP ================================
+
+const verifyPasswordOtp = async (payload: IVerifyPasswordOtpPayload): Promise<{ message: string; resetToken: string }> => {
+  const valid = await Otp.verifyOtp(payload.email, payload.otp, OtpType.FORGOT_PASSWORD);
+  if (!valid) throw new AppError(StatusCodes.BAD_REQUEST, "Invalid or expired OTP");
+
+  const user = await User.findOne({ email: payload.email });
+  if (!user) throw new AppError(StatusCodes.NOT_FOUND, "User not found");
+
+  // Generate temporary reset token (short-lived, 10 minutes)
+  const resetToken = generateToken(
+    { userId: user._id, email: user.email, type: "password-reset" },
+    envVars.JWT_ACCESS_SECRET,
+    "10m"
+  );
+
+  return { message: "OTP verified successfully. You can now set your new password.", resetToken };
+};
+
+// === Reset Password (step 2b) — set new password ==========================
+
+const setNewPassword = async (payload: ISetNewPasswordPayload): Promise<{ message: string }> => {
+  // Verify the reset token to ensure OTP was validated first
+  let decoded: JwtPayload;
+  try {
+    decoded = verifyToken(payload.resetToken, envVars.JWT_ACCESS_SECRET) as JwtPayload;
+  } catch (error) {
+    throw new AppError(StatusCodes.UNAUTHORIZED, "Invalid or expired reset token. Please verify your OTP again.");
+  }
+
+  // Ensure token type is correct
+  if ((decoded as any).type !== "password-reset") {
+    throw new AppError(StatusCodes.UNAUTHORIZED, "Invalid token. Please verify your OTP again.");
+  }
+
+  // Ensure email matches
+  if (decoded.email !== payload.email) {
+    throw new AppError(StatusCodes.UNAUTHORIZED, "Email mismatch. Please verify your OTP again.");
+  }
+
+  const user = await User.findOne({ email: payload.email }).select("+password");
+  if (!user) throw new AppError(StatusCodes.NOT_FOUND, "User not found");
+
+  user.password = payload.newPassword;
+  user.passwordChangedAt = new Date();
+  await user.save(); // pre-save hook hashes the password
+
+  return { message: "Password reset successfully. You can now log in with your new password." };
+};
+
+// === Reset Password (legacy — single step) ================================
 
 const resetPassword = async (payload: IResetPasswordPayload): Promise<{ message: string }> => {
   const valid = await Otp.verifyOtp(payload.email, payload.otp, OtpType.FORGOT_PASSWORD);
@@ -156,5 +207,5 @@ const changePassword = async (userId: string, payload: IChangePasswordPayload): 
 
 export const AuthService = {
   register, verifyEmail, login, refreshToken,
-  forgotPassword, resetPassword, changePassword,
+  forgotPassword, verifyPasswordOtp, setNewPassword, resetPassword, changePassword,
 };

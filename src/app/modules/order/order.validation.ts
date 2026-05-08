@@ -36,8 +36,11 @@ const shippingAddressSchema = z.object({
 const createOrderSchema = z.object({
   items:           z.array(orderItemSchema).min(1, "Order must have at least one item"),
   shippingAddress: shippingAddressSchema,
-  paymentMethod:   z.enum([PaymentMethod.SSLCOMMERZ, PaymentMethod.COD], {
-    error: "paymentMethod must be SSLCOMMERZ or COD",
+  // SSLCommerz approval pending — only COD accepted until gateway goes live.
+  // To re-enable online payment: swap the line below back to
+  //   z.enum([PaymentMethod.SSLCOMMERZ, PaymentMethod.COD], { ... })
+  paymentMethod: z.literal(PaymentMethod.COD, {
+    error: "Online payment is not available yet. Please select Cash on Delivery.",
   }),
   note: z.string().trim().max(500, "Order note must be 500 characters or fewer").optional(),
 });
