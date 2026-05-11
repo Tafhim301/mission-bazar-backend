@@ -13,13 +13,13 @@ const register = catchAsync(async (req: Request, res: Response) => {
 const verifyEmail = catchAsync(async (req: Request, res: Response) => {
   const { user, tokens } = await AuthService.verifyEmail(req.body);
   setAuthCookie(res, tokens);
-  sendResponse(res, { statusCode: StatusCodes.OK, success: true, message: "Email verified. Welcome to Mission Bazar!", data: { user } });
+  sendResponse(res, { statusCode: StatusCodes.OK, success: true, message: "Email verified. Welcome to Mission Bazar!", data: { user, accessToken: tokens.accessToken } });
 });
 
 const login = catchAsync(async (req: Request, res: Response) => {
   const { user, tokens } = await AuthService.login(req.body);
   setAuthCookie(res, tokens);
-  sendResponse(res, { statusCode: StatusCodes.OK, success: true, message: "Logged in successfully", data: { user } });
+  sendResponse(res, { statusCode: StatusCodes.OK, success: true, message: "Logged in successfully", data: { user, accessToken: tokens.accessToken } });
 });
 
 const refreshToken = catchAsync(async (req: Request, res: Response) => {
@@ -27,7 +27,7 @@ const refreshToken = catchAsync(async (req: Request, res: Response) => {
   if (!token) return sendResponse(res, { statusCode: StatusCodes.UNAUTHORIZED, success: false, message: "Refresh token missing", data: null });
   const { accessToken } = await AuthService.refreshToken(token);
   setAuthCookie(res, { accessToken });
-  sendResponse(res, { statusCode: StatusCodes.OK, success: true, message: "Token refreshed", data: null });
+  sendResponse(res, { statusCode: StatusCodes.OK, success: true, message: "Token refreshed", data: { accessToken } });
 });
 
 const logout = catchAsync(async (_req: Request, res: Response) => {

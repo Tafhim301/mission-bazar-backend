@@ -15,8 +15,12 @@ export const checkAuth =
   (...authRoles: string[]) =>
     async (req: Request, _res: Response, next: NextFunction): Promise<void> => {
       try {
-        // 1. Extract the access token from the httpOnly cookie.
-        const token: string | undefined = req.cookies?.accessToken;
+        // 1. Extract the access token — prefer the httpOnly cookie, fall back to
+        //    the Authorization: Bearer header (used when cookies are unavailable).
+        const token: string | undefined =
+          req.cookies?.accessToken ??
+          req.headers.authorization?.replace(/^Bearer\s+/i, "").trim() ??
+          undefined;
 
         if (!token) {
           throw new AppError(StatusCodes.UNAUTHORIZED, "No access token provided");
