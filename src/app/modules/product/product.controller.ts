@@ -56,7 +56,12 @@ const getVendorProducts = catchAsync(async (req: Request, res: Response) => {
   sendResponse(res, { statusCode: StatusCodes.OK, success: true, message: "Vendor products", data: products, meta });
 });
 
+const getBrands = catchAsync(async (_req: Request, res: Response) => {
+  const brands = await ProductService.getDistinctBrands();
+  sendResponse(res, { statusCode: StatusCodes.OK, success: true, message: "Brands retrieved", data: brands });
+});
+
 export const ProductController = {
   createProduct, getAllProducts, getProductById, getProductBySlug,
-  updateProduct, updateProductStatus, deleteProduct, getVendorProducts,
+  updateProduct, updateProductStatus, deleteProduct, getVendorProducts, getBrands,
 };

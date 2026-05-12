@@ -10,6 +10,7 @@ const router = Router();
 
 // === Public ==================================================================
 router.get("/",                 ProductController.getAllProducts);
+router.get("/brands",           ProductController.getBrands);        // must be before /:id
 router.get("/vendor/:vendorId", ProductController.getVendorProducts);
 router.get("/slug/:slug",       ProductController.getProductBySlug);
 router.get("/:id",              ProductController.getProductById);

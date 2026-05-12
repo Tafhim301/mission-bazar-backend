@@ -44,10 +44,47 @@ const createProduct = async (
   return Product.create({ ...payload, vendor: vendorId, images, imagePublicIds });
 };
 
+/**
+ * Resolve a category ID (MAIN, SUB, or SUB_SUB) to the list of SUB_SUB
+ * (leaf) IDs that sit beneath it, so product queries always target leaf nodes.
+ */
+const resolveLeafCategoryIds = async (categoryId: string): Promise<string[]> => {
+  const cat = await Category.findById(categoryId).lean();
+  if (!cat) return [categoryId]; // unknown id — let the query fail naturally
+
+  if (cat.type === CategoryType.SUB_SUB) {
+    return [categoryId];
+  }
+
+  if (cat.type === CategoryType.SUB) {
+    const leaves = await Category.find({ parent: cat._id, type: CategoryType.SUB_SUB }).select("_id").lean();
+    return leaves.map((l) => String(l._id));
+  }
+
+  // MAIN → collect all SUB children first, then their SUB_SUB children
+  const subs   = await Category.find({ parent: cat._id, type: CategoryType.SUB }).select("_id").lean();
+  const subIds = subs.map((s) => s._id);
+  const leaves = await Category.find({ parent: { $in: subIds }, type: CategoryType.SUB_SUB }).select("_id").lean();
+  return leaves.map((l) => String(l._id));
+};
+
 const getAllProducts = async (query: Record<string, string>) => {
+  // Peel off the category param and resolve it to leaf IDs so that clicking a
+  // MAIN or SUB category on the frontend still returns matching products.
+  const processedQuery = { ...query };
+  const extraFilter: Record<string, unknown> = {};
+
+  if (processedQuery.category) {
+    const leafIds = await resolveLeafCategoryIds(processedQuery.category);
+    if (leafIds.length > 0) {
+      extraFilter.category = { $in: leafIds };
+    }
+    delete processedQuery.category; // prevent QueryBuilder from adding a second (exact-match) filter
+  }
+
   const productQuery = new QueryBuilder(
-    Product.find().populate("category", "name slug type"),
-    query
+    Product.find(extraFilter).populate("category", "name slug type"),
+    processedQuery
   )
     .search(["name", "brand", "tags"])
     .filter()
@@ -116,9 +153,18 @@ const deleteProduct = async (id: string): Promise<void> => {
 };
 
 const getVendorProducts = async (vendorId: string, query: Record<string, string>) => {
+  const processedQuery = { ...query };
+  const baseFilter: Record<string, unknown> = { vendor: vendorId, status: "ACTIVE" };
+
+  if (processedQuery.category) {
+    const leafIds = await resolveLeafCategoryIds(processedQuery.category);
+    if (leafIds.length > 0) baseFilter.category = { $in: leafIds };
+    delete processedQuery.category;
+  }
+
   const productQuery = new QueryBuilder(
-    Product.find({ vendor: vendorId, status: "ACTIVE" }).populate("category", "name slug"),
-    query
+    Product.find(baseFilter).populate("category", "name slug"),
+    processedQuery
   )
     .search(["name", "brand", "tags"])
     .filter()
@@ -131,8 +177,13 @@ const getVendorProducts = async (vendorId: string, query: Record<string, string>
   return { products, meta };
 };
 
+const getDistinctBrands = async (): Promise<string[]> => {
+  const brands = await Product.distinct("brand", { isDeleted: false, status: "ACTIVE", brand: { $exists: true, $ne: "" } });
+  return (brands as string[]).filter(Boolean).sort();
+};
+
 export const ProductService = {
   createProduct, getAllProducts, getProductById, getProductBySlug,
   updateProduct, updateProductStatus, deleteProduct, getVendorProducts,
-  computeEffectivePrice,
+  computeEffectivePrice, getDistinctBrands,
 };
