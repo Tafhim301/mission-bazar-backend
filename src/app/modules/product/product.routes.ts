@@ -10,7 +10,8 @@ const router = Router();
 
 // === Public ==================================================================
 router.get("/",                 ProductController.getAllProducts);
-router.get("/brands",           ProductController.getBrands);        // must be before /:id
+router.get("/brands",           ProductController.getBrands);          // must be before /:id
+router.get("/trending",         ProductController.getTrendingProducts); // must be before /:id
 router.get("/vendor/:vendorId", ProductController.getVendorProducts);
 router.get("/slug/:slug",       ProductController.getProductBySlug);
 router.get("/:id",              ProductController.getProductById);
@@ -37,6 +38,12 @@ router.patch(
   checkAuth(UserRole.ADMIN),
   validateRequest(ProductValidation.updateProductStatusSchema),
   ProductController.updateProductStatus
+);
+
+router.patch(
+  "/:id/trending",
+  checkAuth(UserRole.ADMIN),
+  ProductController.toggleTrending
 );
 
 router.delete(

@@ -61,7 +61,19 @@ const getBrands = catchAsync(async (_req: Request, res: Response) => {
   sendResponse(res, { statusCode: StatusCodes.OK, success: true, message: "Brands retrieved", data: brands });
 });
 
+const getTrendingProducts = catchAsync(async (req: Request, res: Response) => {
+  const limit = Number(req.query.limit) || 15;
+  const products = await ProductService.getTrendingProducts(limit);
+  sendResponse(res, { statusCode: StatusCodes.OK, success: true, message: "Trending products retrieved", data: products });
+});
+
+const toggleTrending = catchAsync(async (req: Request, res: Response) => {
+  const product = await ProductService.toggleTrending(req.params.id);
+  sendResponse(res, { statusCode: StatusCodes.OK, success: true, message: `Trending ${product.isTrending ? "enabled" : "disabled"}`, data: product });
+});
+
 export const ProductController = {
   createProduct, getAllProducts, getProductById, getProductBySlug,
-  updateProduct, updateProductStatus, deleteProduct, getVendorProducts, getBrands,
+  updateProduct, updateProductStatus, deleteProduct, getVendorProducts,
+  getBrands, getTrendingProducts, toggleTrending,
 };

@@ -49,15 +49,30 @@ const getAllCategories = async (filters: {
   type?: CategoryType;
   parent?: string;
   isActive?: boolean;
+  searchTerm?: string;
+  limit?: number;
+  page?: number;
 }) => {
   const query: Record<string, unknown> = {};
-  if (filters.type)   query.type     = filters.type;
-  if (filters.parent) query.parent   = filters.parent;
-  if (filters.isActive !== undefined) query.isActive = filters.isActive;
+  if (filters.type)                    query.type     = filters.type;
+  if (filters.parent)                  query.parent   = filters.parent;
+  if (filters.isActive !== undefined)  query.isActive = filters.isActive;
+  if (filters.searchTerm)              query.name     = { $regex: filters.searchTerm, $options: "i" };
 
-  return Category.find(query)
-    .populate("parent", "name slug type")
-    .sort({ order: 1, name: 1 });
+  const limit = filters.limit ?? 200;
+  const page  = filters.page  ?? 1;
+  const skip  = (page - 1) * limit;
+
+  const [data, total] = await Promise.all([
+    Category.find(query)
+      .populate("parent", "name slug type")
+      .sort({ order: 1, name: 1 })
+      .skip(skip)
+      .limit(limit),
+    Category.countDocuments(query),
+  ]);
+
+  return { data, total, page, limit, totalPages: Math.ceil(total / limit) };
 };
 
 const getCategoryById = async (id: string): Promise<ICategoryDocument> => {

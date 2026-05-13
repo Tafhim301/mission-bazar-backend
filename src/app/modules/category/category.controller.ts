@@ -12,13 +12,22 @@ const createCategory = catchAsync(async (req: Request, res: Response) => {
 });
 
 const getAllCategories = catchAsync(async (req: Request, res: Response) => {
-  const { type, parent, isActive } = req.query as Record<string, string | undefined>;
-  const categories = await CategoryService.getAllCategories({
-    type:     type as CategoryType | undefined,
-    parent:   parent,
-    isActive: isActive !== undefined ? isActive === "true" : undefined,
+  const { type, parent, isActive, searchTerm, limit, page } = req.query as Record<string, string | undefined>;
+  const { data, total, totalPages } = await CategoryService.getAllCategories({
+    type:       type as CategoryType | undefined,
+    parent,
+    isActive:   isActive !== undefined ? isActive === "true" : undefined,
+    searchTerm,
+    limit:      limit  ? Number(limit)  : undefined,
+    page:       page   ? Number(page)   : undefined,
   });
-  sendResponse(res, { statusCode: StatusCodes.OK, success: true, message: "Categories retrieved", data: categories });
+  sendResponse(res, {
+    statusCode: StatusCodes.OK,
+    success: true,
+    message: "Categories retrieved",
+    data,
+    meta: { total, totalPages, page: Number(page ?? 1), limit: Number(limit ?? 200) },
+  });
 });
 
 const getCategoryById = catchAsync(async (req: Request, res: Response) => {

@@ -177,6 +177,42 @@ const getVendorProducts = async (vendorId: string, query: Record<string, string>
   return { products, meta };
 };
 
+/**
+ * Returns up to `limit` trending products (isTrending=true, ACTIVE).
+ * If fewer than 5 are manually flagged, pads the result with top-sellers
+ * so the section always has something to show.
+ */
+const getTrendingProducts = async (limit = 15): Promise<IProductDocument[]> => {
+  const flagged = await Product.find({ isTrending: true, status: "ACTIVE" })
+    .populate("category", "name slug type")
+    .sort({ sold: -1, avgRating: -1 })
+    .limit(limit)
+    .lean();
+
+  if (flagged.length >= 5) return flagged as unknown as IProductDocument[];
+
+  // Fallback: pad with top-sellers not already in the flagged list
+  const flaggedIds = flagged.map(p => String(p._id));
+  const topSellers = await Product.find({
+    status:  "ACTIVE",
+    _id:     { $nin: flaggedIds },
+  })
+    .populate("category", "name slug type")
+    .sort({ sold: -1, avgRating: -1 })
+    .limit(limit - flagged.length)
+    .lean();
+
+  return [...flagged, ...topSellers] as unknown as IProductDocument[];
+};
+
+const toggleTrending = async (id: string): Promise<IProductDocument> => {
+  const product = await Product.findById(id);
+  if (!product) throw new AppError(StatusCodes.NOT_FOUND, "Product not found");
+  product.isTrending = !product.isTrending;
+  await product.save();
+  return product;
+};
+
 const getDistinctBrands = async (): Promise<string[]> => {
   const brands = await Product.distinct("brand", { isDeleted: false, status: "ACTIVE", brand: { $exists: true, $ne: "" } });
   return (brands as string[]).filter(Boolean).sort();
@@ -185,5 +221,5 @@ const getDistinctBrands = async (): Promise<string[]> => {
 export const ProductService = {
   createProduct, getAllProducts, getProductById, getProductBySlug,
   updateProduct, updateProductStatus, deleteProduct, getVendorProducts,
-  computeEffectivePrice, getDistinctBrands,
+  computeEffectivePrice, getDistinctBrands, getTrendingProducts, toggleTrending,
 };

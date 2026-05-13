@@ -47,6 +47,7 @@ export interface IProduct {
   avgRating: number;
   totalReviews: number;
   freeShipping: boolean;
+  isTrending: boolean;
   status: ProductStatus;
   isDeleted: boolean;
   vendor: Types.ObjectId;

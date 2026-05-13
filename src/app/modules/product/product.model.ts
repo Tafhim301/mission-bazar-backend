@@ -40,6 +40,7 @@ const productSchema = new Schema<IProductDocument>(
     avgRating:          { type: Number, default: 0, min: 0, max: 5 },
     totalReviews:       { type: Number, default: 0, min: 0 },
     freeShipping:       { type: Boolean, default: false },
+    isTrending:         { type: Boolean, default: false, index: true },
     status:             { type: String, enum: Object.values(ProductStatus), default: ProductStatus.DRAFT },
     isDeleted:          { type: Boolean, default: false },
     vendor:             { type: Schema.Types.ObjectId, ref: "User" , required : true },
