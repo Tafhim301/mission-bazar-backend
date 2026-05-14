@@ -8,7 +8,7 @@ import { StatusCodes } from "http-status-codes";
 const transporter = nodemailer.createTransport({
   host: envVars.SMTP_HOST,
   port: envVars.SMTP_PORT,
-  secure: true,
+  secure: false, // true for 465, false for other ports
   auth: {
     user: envVars.SMTP_USER,
     pass: envVars.SMTP_PASS,
