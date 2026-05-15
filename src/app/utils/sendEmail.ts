@@ -1,19 +1,12 @@
-import nodemailer from "nodemailer";
+import { Resend } from "resend";
 import path from "path";
 import ejs from "ejs";
 import { envVars } from "../config/env";
 import AppError from "../errorHandlers/appError";
 import { StatusCodes } from "http-status-codes";
 
-const transporter = nodemailer.createTransport({
-  host: envVars.SMTP_HOST,
-  port: envVars.SMTP_PORT,
-  secure: false, // true for 465, false for other ports
-  auth: {
-    user: envVars.SMTP_USER,
-    pass: envVars.SMTP_PASS,
-  },
-});
+// Resend sends over HTTPS (port 443) — never blocked by cloud hosts.
+const resend = new Resend(envVars.RESEND_API_KEY);
 
 export interface ISendEmailOptions {
   to: string;
@@ -37,21 +30,25 @@ export const sendEmail = async (options: ISendEmailOptions): Promise<void> => {
 
     const html = await ejs.renderFile(templatePath, options.templateData ?? {});
 
-    await transporter.sendMail({
-      from: `"Mission Bazar" <${envVars.SMTP_FROM}>`,
+    const { error } = await resend.emails.send({
+      from: `Mission Bazar <${envVars.SMTP_FROM}>`,
       to: options.to,
       subject: options.subject,
       html,
       attachments: options.attachments?.map((a) => ({
-        filename: a.filename,
-        content: a.content,
+        filename:    a.filename,
+        content:     a.content instanceof Buffer ? a.content.toString("base64") : a.content,
         contentType: a.contentType,
       })),
     });
 
+    if (error) {
+      throw new Error(error.message);
+    }
+
     console.log(`✉  Email sent to ${options.to} [${options.subject}]`);
-  } catch (error: unknown) {
-    const msg = error instanceof Error ? error.message : String(error);
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
     throw new AppError(
       StatusCodes.INTERNAL_SERVER_ERROR,
       `Email sending failed: ${msg}`
