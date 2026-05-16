@@ -3,7 +3,7 @@ import { StatusCodes } from "http-status-codes";
 import AppError from "../../errorHandlers/appError";
 import { Product } from "./product.model";
 import { IProductDocument, DiscountType } from "./product.interface";
-import { deleteFromCloudinary } from "../../config/cloudinary";
+import { cloudinary } from "../../config/cloudinary";
 import { QueryBuilder } from "../../utils/queryBuilder";
 import { Category } from "../category/category.model";
 import { CategoryType } from "../category/category.interface";
@@ -121,13 +121,21 @@ const updateProduct = async (
   const product = await Product.findById(id).select("+imagePublicIds");
   if (!product) throw new AppError(StatusCodes.NOT_FOUND, "Product not found");
 
-  const toDelete: string[] = (payload.deleteImages as unknown as string[]) ?? [];
+  // deleteImages arrives from FormData as a JSON string — parse it properly
+  const toDelete: string[] = (() => {
+    const raw = (payload as any).deleteImages;
+    if (!raw) return [];
+    try { return JSON.parse(typeof raw === "string" ? raw : JSON.stringify(raw)); }
+    catch { return []; }
+  })();
+
   if (toDelete.length) {
-    await Promise.all(toDelete.map((url) => deleteFromCloudinary(url).catch(console.error)));
-    product.images         = product.images.filter((u) => !toDelete.includes(u));
-    product.imagePublicIds = product.imagePublicIds.filter(
-      (_, i) => !toDelete.includes(product.images[i])
-    );
+    // Delete from Cloudinary by public_id directly (toDelete contains public_ids, not URLs)
+    await Promise.all(toDelete.map((pid) => cloudinary.uploader.destroy(pid).catch(console.error)));
+    // Use index-aligned mask so both arrays stay in sync after filtering
+    const keepMask = product.imagePublicIds.map((pid) => !toDelete.includes(pid));
+    product.images         = product.images.filter((_, i) => keepMask[i]);
+    product.imagePublicIds = product.imagePublicIds.filter((_, i) => keepMask[i]);
   }
 
   if (imageFiles.length) {
