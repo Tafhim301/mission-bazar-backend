@@ -326,5 +326,3 @@ const getVendorOrders = async (vendorId: string, query: Record<string, string>) 
 export const OrderService = {
   createOrder, getMyOrders, getAllOrders, getOrderById, updateOrderStatus, cancelOrder, getVendorOrders,
 };
-, getVendorOrders,
-};
