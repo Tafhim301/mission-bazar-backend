@@ -17,7 +17,7 @@ const addAddressSchema = z.object({
   upazila:      z.string({ error: "Upazila is required" }).trim().min(2),
   area:         z.string().trim().optional(),
   street:       z.string({ error: "Street / house address is required" }).trim().min(3),
-  postalCode:   z.string().trim().optional(),
+  postalCode:   z.string({ error: "Postal code is required" }).trim().min(4, "Enter a valid postal code"),
   landmark:     z.string().trim().optional(),
   zone:         z.string().trim().optional(),   // legacy, not required
   isDefault:    z.boolean().optional().default(false),

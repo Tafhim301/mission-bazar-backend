@@ -16,7 +16,7 @@ const addressSchema = new Schema<IAddress>(
     upazila:      { type: String, required: true, trim: true },
     area:         { type: String, trim: true },                   // optional neighbourhood
     street:       { type: String, required: true, trim: true },
-    postalCode:   { type: String, trim: true },                   // auto-filled from district
+    postalCode:   { type: String, required: true, trim: true },    // required — chosen from dropdown
     landmark:     { type: String, trim: true },
     zone:         { type: String, trim: true },                   // legacy field
     isDefault:    { type: Boolean, default: false },
