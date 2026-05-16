@@ -1,6 +1,7 @@
-import express, { Request, Response } from "express";
+import express, { Request, Response, NextFunction } from "express";
 import cors from "cors";
 import cookieParser from "cookie-parser";
+import mongoose from "mongoose";
 import { router } from "./app/routes";
 import { globalErrorHandler } from "./app/errorHandlers/globalErrorHandler";
 import { notFound } from "./app/middlewares/notFound";
@@ -18,6 +19,22 @@ app.use(
     credentials: true,
   })
 );
+
+// === Serverless DB connection =================================================
+// When running on Vercel (serverless), server.ts never executes.
+// This middleware ensures MongoDB is connected before every request.
+// Mongoose caches the connection, so it only opens once per warm instance.
+
+app.use(async (_req: Request, _res: Response, next: NextFunction) => {
+  try {
+    if (mongoose.connection.readyState === 0) {
+      await mongoose.connect(process.env.DB_URL as string);
+    }
+    next();
+  } catch (err) {
+    next(err);
+  }
+});
 
 // === Routes ==================================================================
 

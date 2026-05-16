@@ -1,12 +1,27 @@
-import { Resend } from "resend";
+import nodemailer from "nodemailer";
 import path from "path";
 import ejs from "ejs";
 import { envVars } from "../config/env";
 import AppError from "../errorHandlers/appError";
 import { StatusCodes } from "http-status-codes";
 
-// Resend sends over HTTPS (port 443) — never blocked by cloud hosts.
-const resend = new Resend(envVars.RESEND_API_KEY);
+// Lazy singleton — reused across warm serverless invocations.
+let _transporter: nodemailer.Transporter | null = null;
+
+function getTransporter(): nodemailer.Transporter {
+  if (!_transporter) {
+    _transporter = nodemailer.createTransport({
+      host:   envVars.SMTP_HOST,
+      port:   envVars.SMTP_PORT,
+      secure: envVars.SMTP_PORT === 465, // true for 465, STARTTLS for 587
+      auth: {
+        user: envVars.SMTP_USER,
+        pass: envVars.SMTP_PASS,
+      },
+    });
+  }
+  return _transporter;
+}
 
 export interface ISendEmailOptions {
   to: string;
@@ -30,21 +45,17 @@ export const sendEmail = async (options: ISendEmailOptions): Promise<void> => {
 
     const html = await ejs.renderFile(templatePath, options.templateData ?? {});
 
-    const { error } = await resend.emails.send({
-      from: `Mission Bazar <${envVars.SMTP_FROM}>`,
-      to: options.to,
+    await getTransporter().sendMail({
+      from:    `Mission Bazar <${envVars.SMTP_FROM}>`,
+      to:      options.to,
       subject: options.subject,
       html,
       attachments: options.attachments?.map((a) => ({
         filename:    a.filename,
-        content:     a.content instanceof Buffer ? a.content.toString("base64") : a.content,
+        content:     a.content,
         contentType: a.contentType,
       })),
     });
-
-    if (error) {
-      throw new Error(error.message);
-    }
 
     console.log(`✉  Email sent to ${options.to} [${options.subject}]`);
   } catch (err: unknown) {

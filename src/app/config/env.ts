@@ -25,7 +25,10 @@ interface EnvConfig {
   SSL_SUCCESS_FRONTEND_URL: string;
   SSL_FAIL_FRONTEND_URL: string;
   SSL_CANCEL_FRONTEND_URL: string;
-  RESEND_API_KEY: string;
+  SMTP_HOST: string;
+  SMTP_PORT: number;
+  SMTP_USER: string;
+  SMTP_PASS: string;
   SMTP_FROM: string;
   REDIS_HOST: string;
   REDIS_PORT: number;
@@ -58,7 +61,10 @@ const loadEnvVariables = (): EnvConfig => {
     "SSL_SUCCESS_FRONTEND_URL",
     "SSL_FAIL_FRONTEND_URL",
     "SSL_CANCEL_FRONTEND_URL",
-    "RESEND_API_KEY",
+    "SMTP_HOST",
+    "SMTP_PORT",
+    "SMTP_USER",
+    "SMTP_PASS",
     "SMTP_FROM",
     "REDIS_HOST",
     "REDIS_PORT",
@@ -95,8 +101,11 @@ const loadEnvVariables = (): EnvConfig => {
     SSL_SUCCESS_FRONTEND_URL: process.env.SSL_SUCCESS_FRONTEND_URL as string,
     SSL_FAIL_FRONTEND_URL: process.env.SSL_FAIL_FRONTEND_URL as string,
     SSL_CANCEL_FRONTEND_URL: process.env.SSL_CANCEL_FRONTEND_URL as string,
-    RESEND_API_KEY: process.env.RESEND_API_KEY as string,
-    SMTP_FROM:      process.env.SMTP_FROM as string,
+    SMTP_HOST: process.env.SMTP_HOST as string,
+    SMTP_PORT: Number(process.env.SMTP_PORT ?? 587),
+    SMTP_USER: process.env.SMTP_USER as string,
+    SMTP_PASS: process.env.SMTP_PASS as string,
+    SMTP_FROM: process.env.SMTP_FROM as string,
     REDIS_HOST: process.env.REDIS_HOST as string,
     REDIS_PORT: Number(process.env.REDIS_PORT),
     REDIS_USERNAME: process.env.REDIS_USERNAME as string,
