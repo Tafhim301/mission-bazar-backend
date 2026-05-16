@@ -30,7 +30,7 @@ const shippingAddressSchema = z.object({
   phone:      z.string({ error: "Phone is required" }).trim().regex(/^\+?[0-9]{7,15}$/, "Invalid phone"),
   address:    z.string({ error: "Address is required" }).trim().min(5),
   city:       z.string({ error: "City is required" }).trim().min(2),
-  postalCode: z.string({ error: "Postal code is required" }).trim().min(4),
+  postalCode: z.string().trim().min(4).optional(),
 });
 
 const createOrderSchema = z.object({

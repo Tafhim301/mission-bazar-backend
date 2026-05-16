@@ -23,7 +23,7 @@ const createOrder = async (
   userRole: string,
   payload: {
     items: { product: string; quantity: number; quantityNote?: string }[];
-    shippingAddress: { fullName: string; phone: string; address: string; city: string; postalCode: string };
+    shippingAddress: { fullName: string; phone: string; address: string; city: string; postalCode?: string };
     paymentMethod: PaymentMethod;
     note?: string;
   }
@@ -192,7 +192,8 @@ const getOrderById = async (orderId: string, userId: string, role: string): Prom
     .populate("items.product", "name images singleItemPrice minOrderQty moqNote")
     .populate("payment", "status invoiceUrl transactionId amount");
   if (!order) throw new AppError(StatusCodes.NOT_FOUND, `Order not found: ${orderId}`);
-  if (role === "USER" && String(order.user) !== userId)
+  // Non-admin users can only view their own orders
+  if (role !== "ADMIN" && String((order.user as unknown as { _id?: string })?._id ?? order.user) !== userId)
     throw new AppError(StatusCodes.FORBIDDEN, "You can only view your own orders");
   return order as IOrderDocument;
 };
@@ -259,9 +260,11 @@ const cancelOrder = async (orderId: string, userId: string): Promise<void> => {
   try {
     const order = await Order.findById(orderId).session(session);
     if (!order) throw new AppError(StatusCodes.NOT_FOUND, "Order not found");
-    if (String(order.user) !== userId)
+    if (String((order.user as unknown as { _id?: string })?._id ?? order.user) !== userId)
       throw new AppError(StatusCodes.FORBIDDEN, "You can only cancel your own orders");
-    if (order.status !== OrderStatus.PENDING)
+    // Allow cancellation of PENDING (online payment) and PROCESSING (COD) orders
+    const cancellable = [OrderStatus.PENDING, OrderStatus.PROCESSING];
+    if (!cancellable.includes(order.status))
       throw new AppError(StatusCodes.BAD_REQUEST, `Cannot cancel order with status: ${order.status}`);
 
     await Promise.all(
@@ -269,7 +272,14 @@ const cancelOrder = async (orderId: string, userId: string): Promise<void> => {
         Product.findByIdAndUpdate(item.product, { $inc: { stock: item.quantity, sold: -item.quantity } }, { session })
       )
     );
-    await Order.findByIdAndUpdate(orderId, { status: OrderStatus.CANCELLED }, { session });
+    await Order.findByIdAndUpdate(
+      orderId,
+      {
+        $set:  { status: OrderStatus.CANCELLED },
+        $push: { statusHistory: { status: OrderStatus.CANCELLED, note: "Order cancelled by customer", updatedAt: new Date() } },
+      },
+      { session }
+    );
     await Payment.findOneAndUpdate({ order: orderId }, { status: PaymentStatus.CANCELLED }, { session });
 
     await session.commitTransaction();
@@ -315,4 +325,6 @@ const getVendorOrders = async (vendorId: string, query: Record<string, string>) 
 
 export const OrderService = {
   createOrder, getMyOrders, getAllOrders, getOrderById, updateOrderStatus, cancelOrder, getVendorOrders,
+};
+, getVendorOrders,
 };

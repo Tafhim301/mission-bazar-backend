@@ -35,6 +35,7 @@ export interface IAddress {
   upazila:      string;   // BD upazila / thana
   area?:        string;   // specific neighbourhood / union / para
   street:       string;   // house #, flat, road
+  postalCode?:  string;   // auto-filled from district
   landmark?:    string;
   zone?:        string;   // legacy — kept for backward compat, not used in new UI
   isDefault:    boolean;

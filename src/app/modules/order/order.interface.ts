@@ -35,7 +35,7 @@ export interface IShippingAddress {
   phone: string;
   address: string;
   city: string;
-  postalCode: string;
+  postalCode?: string;
 }
 
 /** One entry in the status timeline — appended on every status change */
