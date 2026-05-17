@@ -5,6 +5,7 @@ import mongoose from "mongoose";
 import { router } from "./app/routes";
 import { globalErrorHandler } from "./app/errorHandlers/globalErrorHandler";
 import { notFound } from "./app/middlewares/notFound";
+import { envVars } from "./app/config/env";
 
 const app = express();
 
@@ -15,7 +16,7 @@ app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 app.use(
   cors({
-    origin: process.env.CLIENT_URL || "https://mission-bazar-frontend.vercel.app",
+    origin: process.env.CLIENT_URL || "https://mission-bazar-frontend.vercel.app" || envVars.NODE_ENV === "development" ? "http://localhost:5173" : undefined,
     credentials: true,
   })
 );

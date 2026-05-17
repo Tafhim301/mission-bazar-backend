@@ -13,10 +13,10 @@ const addressSchema = new Schema<IAddress>(
     contactPhone: { type: String, required: true, trim: true },
     division:     { type: String, required: true, trim: true },   // BD division (analytics key)
     district:     { type: String, required: true, trim: true },
-    upazila:      { type: String, required: true, trim: true },
-    area:         { type: String, trim: true },                   // optional neighbourhood
+    upazila:      { type: String, trim: true },                   // optional — not collected in new address flow
+    area:         { type: String, required: true, trim: true },   // area / neighbourhood
     street:       { type: String, required: true, trim: true },
-    postalCode:   { type: String, required: true, trim: true },    // required — chosen from dropdown
+    postalCode:   { type: String, trim: true },                   // optional — not collected in new address flow
     landmark:     { type: String, trim: true },
     zone:         { type: String, trim: true },                   // legacy field
     isDefault:    { type: Boolean, default: false },

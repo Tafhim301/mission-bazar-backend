@@ -32,10 +32,10 @@ export interface IAddress {
   contactPhone: string;
   division:     string;   // BD administrative division (Dhaka, Chittagong, …)
   district:     string;   // BD district
-  upazila:      string;   // BD upazila / thana
-  area?:        string;   // specific neighbourhood / union / para
+  upazila?:     string;   // optional — not collected in new address flow
+  area:         string;   // area / neighbourhood (required)
   street:       string;   // house #, flat, road
-  postalCode:   string;   // required — chosen from dropdown
+  postalCode?:  string;   // optional — not collected in new address flow
   landmark?:    string;
   zone?:        string;   // legacy — kept for backward compat, not used in new UI
   isDefault:    boolean;

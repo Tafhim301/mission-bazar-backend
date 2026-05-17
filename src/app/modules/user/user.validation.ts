@@ -14,10 +14,10 @@ const addAddressSchema = z.object({
   contactPhone: z.string({ error: "Contact phone is required" }).trim().regex(/^\+?8801[3-9]\d{8}$|^\+?[0-9]{7,15}$/, "Invalid phone number"),
   division:     z.string({ error: "Division is required" }).trim().min(2),
   district:     z.string({ error: "District is required" }).trim().min(2),
-  upazila:      z.string({ error: "Upazila is required" }).trim().min(2),
-  area:         z.string().trim().optional(),
+  upazila:      z.string().trim().optional(),
+  area:         z.string({ error: "Area / neighbourhood is required" }).trim().min(1, "Area / neighbourhood is required"),
   street:       z.string({ error: "Street / house address is required" }).trim().min(3),
-  postalCode:   z.string({ error: "Postal code is required" }).trim().min(4, "Enter a valid postal code"),
+  postalCode:   z.string().trim().optional(),
   landmark:     z.string().trim().optional(),
   zone:         z.string().trim().optional(),   // legacy, not required
   isDefault:    z.boolean().optional().default(false),
